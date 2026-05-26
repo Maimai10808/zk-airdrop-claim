@@ -139,5 +139,68 @@ finalize test_double_claim_fail:
     await r4;
     await r5;
 
+function test_claim_disabled_fail:
+    call zk_airdrop_claim.aleo/initialize_admin into r0;
+    call zk_airdrop_claim.aleo/create_campaign 1u64 2000u64 into r1;
+    call zk_airdrop_claim.aleo/issue_eligibility self.signer 1u64 2u8 1000u64 1800u64 into r2 r3;
+    call zk_airdrop_claim.aleo/set_campaign_enabled 1u64 false into r4;
+    call zk_airdrop_claim.aleo/claim_airdrop r2 1000u64 into r5 r6;
+    assert.eq r5.owner self.signer;
+    assert.eq r5.amount 1000u64;
+    async test_claim_disabled_fail r0 r1 r3 r4 r6 into r7;
+    output r7 as test_zk_airdrop_claim.aleo/test_claim_disabled_fail.future;
+
+finalize test_claim_disabled_fail:
+    input r0 as zk_airdrop_claim.aleo/initialize_admin.future;
+    input r1 as zk_airdrop_claim.aleo/create_campaign.future;
+    input r2 as zk_airdrop_claim.aleo/issue_eligibility.future;
+    input r3 as zk_airdrop_claim.aleo/set_campaign_enabled.future;
+    input r4 as zk_airdrop_claim.aleo/claim_airdrop.future;
+    await r0;
+    await r1;
+    await r2;
+    await r3;
+    await r4;
+
+function test_claim_expired_fail:
+    call zk_airdrop_claim.aleo/initialize_admin into r0;
+    call zk_airdrop_claim.aleo/create_campaign 1u64 2000u64 into r1;
+    call zk_airdrop_claim.aleo/issue_eligibility self.signer 1u64 2u8 1000u64 1800u64 into r2 r3;
+    call zk_airdrop_claim.aleo/claim_airdrop r2 1900u64 into r4 r5;
+    assert.eq r4.owner self.signer;
+    assert.eq r4.amount 1000u64;
+    async test_claim_expired_fail r0 r1 r3 r5 into r6;
+    output r6 as test_zk_airdrop_claim.aleo/test_claim_expired_fail.future;
+
+finalize test_claim_expired_fail:
+    input r0 as zk_airdrop_claim.aleo/initialize_admin.future;
+    input r1 as zk_airdrop_claim.aleo/create_campaign.future;
+    input r2 as zk_airdrop_claim.aleo/issue_eligibility.future;
+    input r3 as zk_airdrop_claim.aleo/claim_airdrop.future;
+    await r0;
+    await r1;
+    await r2;
+    await r3;
+
+function test_create_no_admin_fail:
+    call zk_airdrop_claim.aleo/create_campaign 1u64 2000u64 into r0;
+    async test_create_no_admin_fail r0 into r1;
+    output r1 as test_zk_airdrop_claim.aleo/test_create_no_admin_fail.future;
+
+finalize test_create_no_admin_fail:
+    input r0 as zk_airdrop_claim.aleo/create_campaign.future;
+    await r0;
+
+function test_issue_no_admin_fail:
+    call zk_airdrop_claim.aleo/issue_eligibility self.signer 1u64 2u8 1000u64 1800u64 into r0 r1;
+    assert.eq r0.owner self.signer;
+    assert.eq r0.amount 1000u64;
+    async test_issue_no_admin_fail r1 into r2;
+    output r2 as test_zk_airdrop_claim.aleo/test_issue_no_admin_fail.future;
+
+finalize test_issue_no_admin_fail:
+    input r0 as zk_airdrop_claim.aleo/issue_eligibility.future;
+    await r0;
+
 constructor:
     assert.eq edition 0u16;
