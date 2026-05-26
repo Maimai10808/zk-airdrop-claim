@@ -18,7 +18,7 @@ export function AleoWalletProvider({ children }: AleoWalletProviderProps) {
   return (
     <BaseAleoWalletProvider
       wallets={wallets}
-      network={"testnet3" as any}
+      network={"testnet" as any}
       decryptPermission={DecryptPermission.UponRequest}
       autoConnect={false}
       onError={(error) => console.error("Aleo wallet error:", error)}
