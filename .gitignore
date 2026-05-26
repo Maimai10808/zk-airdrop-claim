@@ -1,0 +1,38 @@
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+dist/
+.vercel/
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/dist/
+frontend/.env.local
+
+# Leo build outputs
+programs/**/build/
+
+# Aleo local devnet / snarkOS
+snarkos
+snarkos/
+**/snarkos
+**/snarkos/
+validator-*/
+client-*/
+**/validator-*/
+**/client-*/
+*.log
+
+# macOS / editor
+.DS_Store
+.vscode/
+.idea/
+
+# Environment files
+.env
+.env.local
+*.local
