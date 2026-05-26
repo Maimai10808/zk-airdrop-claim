@@ -199,4 +199,71 @@ program test_zk_airdrop_claim.aleo {
             claim_final_b.run();
         };
     }
+
+        @test
+    @should_fail
+    fn test_double_claim_fail() -> Final {
+        let admin_final = zk_airdrop_claim.aleo::initialize_admin();
+
+        let user: address = self.signer;
+
+        let campaign_id: u64 = 1u64;
+        let campaign_deadline: u64 = 2000u64;
+
+        let campaign_final = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id,
+            campaign_deadline,
+        );
+
+        // 第一张 Eligibility
+        let (eligibility_a, issue_final_a) = zk_airdrop_claim.aleo::issue_eligibility(
+            user,
+            campaign_id,
+            2u8,
+            1000u64,
+            1800u64,
+        );
+
+        let (reward_a, claim_final_a) = zk_airdrop_claim.aleo::claim_airdrop(
+            eligibility_a,
+            1000u64,
+        );
+
+        assert_eq(reward_a.owner, user);
+        assert_eq(reward_a.campaign_id, campaign_id);
+        assert_eq(reward_a.amount, 1000u64);
+
+        // 第二张 Eligibility：同一个 user + 同一个 campaign
+        let (eligibility_b, issue_final_b) = zk_airdrop_claim.aleo::issue_eligibility(
+            user,
+            campaign_id,
+            3u8,
+            2000u64,
+            1800u64,
+        );
+
+        let (reward_b, claim_final_b) = zk_airdrop_claim.aleo::claim_airdrop(
+            eligibility_b,
+            1000u64,
+        );
+
+        assert_eq(reward_b.owner, user);
+        assert_eq(reward_b.campaign_id, campaign_id);
+        assert_eq(reward_b.amount, 2000u64);
+
+        return final {
+            admin_final.run();
+            campaign_final.run();
+
+            issue_final_a.run();
+            claim_final_a.run();
+
+            issue_final_b.run();
+
+            // 这里应该失败：
+            // claimed[claim_key] 已经是 true，
+            // 所以第二次 claim 会触发 assert(!already_claimed) 失败。
+            claim_final_b.run();
+        };
+    }
 }
