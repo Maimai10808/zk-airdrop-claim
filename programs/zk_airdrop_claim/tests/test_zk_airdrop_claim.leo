@@ -1,11 +1,11 @@
 import zk_airdrop_claim.aleo;
 
 program test_zk_airdrop_claim.aleo {
-     @noupgrade
+    @noupgrade
     constructor() {}
 
     @test
-    fn test_initialize_admin() -> Final {
+    fn test_init_admin() -> Final {
         let admin_final = zk_airdrop_claim.aleo::initialize_admin();
 
         return final {
@@ -14,72 +14,101 @@ program test_zk_airdrop_claim.aleo {
     }
 
     @test
-    fn test_issue_eligibility() -> Final {
+    fn test_issue_campaign() -> Final {
         let admin_final = zk_airdrop_claim.aleo::initialize_admin();
 
-        let user: address = self.caller;
+        let campaign_id: u64 = 1u64;
+        let campaign_deadline: u64 = 2000u64;
+        let user: address = self.signer;
+
+        let campaign_final = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id,
+            campaign_deadline,
+        );
 
         let (eligibility, issue_final) = zk_airdrop_claim.aleo::issue_eligibility(
             user,
-            1u64,
+            campaign_id,
             2u8,
             1000u64,
+            1800u64,
         );
 
         assert_eq(eligibility.owner, user);
-        assert_eq(eligibility.campaign_id, 1u64);
+        assert_eq(eligibility.campaign_id, campaign_id);
         assert_eq(eligibility.tier, 2u8);
         assert_eq(eligibility.amount, 1000u64);
+        assert_eq(eligibility.deadline, 1800u64);
 
         return final {
             admin_final.run();
+            campaign_final.run();
             issue_final.run();
         };
     }
 
     @test
-    fn test_claim_airdrop() -> Final {
+    fn test_claim() -> Final {
         let admin_final = zk_airdrop_claim.aleo::initialize_admin();
 
-        let user: address = self.caller;
+        let campaign_id: u64 = 1u64;
+        let campaign_deadline: u64 = 2000u64;
+        let user: address = self.signer;
+
+        let campaign_final = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id,
+            campaign_deadline,
+        );
 
         let (eligibility, issue_final) = zk_airdrop_claim.aleo::issue_eligibility(
             user,
-            1u64,
+            campaign_id,
             2u8,
             1000u64,
+            1800u64,
         );
 
         let (reward, claim_final) = zk_airdrop_claim.aleo::claim_airdrop(
             eligibility,
+            1000u64,
         );
 
         assert_eq(reward.owner, user);
-        assert_eq(reward.campaign_id, 1u64);
+        assert_eq(reward.campaign_id, campaign_id);
         assert_eq(reward.amount, 1000u64);
 
         return final {
             admin_final.run();
+            campaign_final.run();
             issue_final.run();
             claim_final.run();
         };
     }
 
     @test
-    fn test_split_reward() -> Final {
+    fn test_split() -> Final {
         let admin_final = zk_airdrop_claim.aleo::initialize_admin();
 
-        let user: address = self.caller;
+        let campaign_id: u64 = 1u64;
+        let campaign_deadline: u64 = 2000u64;
+        let user: address = self.signer;
+
+        let campaign_final = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id,
+            campaign_deadline,
+        );
 
         let (eligibility, issue_final) = zk_airdrop_claim.aleo::issue_eligibility(
             user,
-            1u64,
+            campaign_id,
             2u8,
             1000u64,
+            1800u64,
         );
 
         let (reward, claim_final) = zk_airdrop_claim.aleo::claim_airdrop(
             eligibility,
+            1000u64,
         );
 
         let (part_a, part_b) = zk_airdrop_claim.aleo::split_reward(
@@ -88,59 +117,80 @@ program test_zk_airdrop_claim.aleo {
         );
 
         assert_eq(part_a.owner, user);
-        assert_eq(part_a.campaign_id, 1u64);
+        assert_eq(part_a.campaign_id, campaign_id);
         assert_eq(part_a.amount, 300u64);
 
         assert_eq(part_b.owner, user);
-        assert_eq(part_b.campaign_id, 1u64);
+        assert_eq(part_b.campaign_id, campaign_id);
         assert_eq(part_b.amount, 700u64);
 
         return final {
             admin_final.run();
+            campaign_final.run();
             issue_final.run();
             claim_final.run();
         };
     }
 
     @test
-    fn test_merge_rewards() -> Final {
+    fn test_multi_campaign() -> Final {
         let admin_final = zk_airdrop_claim.aleo::initialize_admin();
 
-        let user: address = self.caller;
+        let user: address = self.signer;
+
+        let campaign_id_a: u64 = 1u64;
+        let campaign_id_b: u64 = 2u64;
+        let campaign_deadline: u64 = 2000u64;
+
+        let campaign_final_a = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id_a,
+            campaign_deadline,
+        );
+
+        let campaign_final_b = zk_airdrop_claim.aleo::create_campaign(
+            campaign_id_b,
+            campaign_deadline,
+        );
 
         let (eligibility_a, issue_final_a) = zk_airdrop_claim.aleo::issue_eligibility(
             user,
-            1u64,
+            campaign_id_a,
             2u8,
             300u64,
+            1800u64,
         );
 
         let (reward_a, claim_final_a) = zk_airdrop_claim.aleo::claim_airdrop(
             eligibility_a,
+            1000u64,
         );
 
         let (eligibility_b, issue_final_b) = zk_airdrop_claim.aleo::issue_eligibility(
             user,
-            1u64,
-            2u8,
+            campaign_id_b,
+            3u8,
             700u64,
+            1800u64,
         );
 
         let (reward_b, claim_final_b) = zk_airdrop_claim.aleo::claim_airdrop(
             eligibility_b,
+            1000u64,
         );
 
-        let merged = zk_airdrop_claim.aleo::merge_rewards(
-            reward_a,
-            reward_b,
-        );
+        assert_eq(reward_a.owner, user);
+        assert_eq(reward_a.campaign_id, campaign_id_a);
+        assert_eq(reward_a.amount, 300u64);
 
-        assert_eq(merged.owner, user);
-        assert_eq(merged.campaign_id, 1u64);
-        assert_eq(merged.amount, 1000u64);
+        assert_eq(reward_b.owner, user);
+        assert_eq(reward_b.campaign_id, campaign_id_b);
+        assert_eq(reward_b.amount, 700u64);
 
         return final {
             admin_final.run();
+
+            campaign_final_a.run();
+            campaign_final_b.run();
 
             issue_final_a.run();
             claim_final_a.run();

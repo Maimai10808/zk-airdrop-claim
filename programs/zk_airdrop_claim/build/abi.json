@@ -1,6 +1,44 @@
 {
   "program": "zk_airdrop_claim.aleo",
-  "structs": [],
+  "structs": [
+    {
+      "path": [
+        "Campaign"
+      ],
+      "fields": [
+        {
+          "name": "enabled",
+          "ty": {
+            "Primitive": "Boolean"
+          }
+        },
+        {
+          "name": "deadline",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          }
+        },
+        {
+          "name": "total_claimed_users",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          }
+        },
+        {
+          "name": "total_claimed_amount",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          }
+        }
+      ]
+    }
+  ],
   "records": [
     {
       "path": [
@@ -34,6 +72,15 @@
         },
         {
           "name": "amount",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "deadline",
           "ty": {
             "Primitive": {
               "UInt": "U64"
@@ -89,16 +136,28 @@
       }
     },
     {
-      "name": "campaign_claim_count",
+      "name": "campaigns",
       "key": {
         "Primitive": {
           "UInt": "U64"
         }
       },
       "value": {
-        "Primitive": {
-          "UInt": "U64"
+        "Struct": {
+          "path": [
+            "Campaign"
+          ],
+          "program": "zk_airdrop_claim.aleo"
         }
+      }
+    },
+    {
+      "name": "claimed",
+      "key": {
+        "Primitive": "Field"
+      },
+      "value": {
+        "Primitive": "Boolean"
       }
     }
   ],
@@ -108,6 +167,127 @@
       "name": "initialize_admin",
       "is_final": true,
       "inputs": [],
+      "outputs": [
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "transfer_admin",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "new_admin",
+          "ty": {
+            "Plaintext": {
+              "Primitive": "Address"
+            }
+          },
+          "mode": "Public"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "create_campaign",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
+        },
+        {
+          "name": "deadline",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "set_campaign_enabled",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
+        },
+        {
+          "name": "enabled",
+          "ty": {
+            "Plaintext": {
+              "Primitive": "Boolean"
+            }
+          },
+          "mode": "Public"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "set_campaign_deadline",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
+        },
+        {
+          "name": "new_deadline",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
+        }
+      ],
       "outputs": [
         {
           "ty": "Final",
@@ -160,6 +340,17 @@
             }
           },
           "mode": "None"
+        },
+        {
+          "name": "deadline",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "None"
         }
       ],
       "outputs": [
@@ -195,6 +386,17 @@
             }
           },
           "mode": "None"
+        },
+        {
+          "name": "current_time",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "Public"
         }
       ],
       "outputs": [

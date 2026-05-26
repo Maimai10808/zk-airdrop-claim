@@ -1,6 +1,26 @@
+fn build_claim_key(
+    user: address,
+    campaign_id: u64,
+) -> field {
+    let user_key: field = user as field;
+    let campaign_key: field = campaign_id as field;
+    return user_key + campaign_key;
+}
+
 program zk_airdrop_claim.aleo {
     @noupgrade
     constructor() {}
+
+    // =========================================================================
+    // Structs
+    // =========================================================================
+
+    struct Campaign {
+        enabled: bool,
+        deadline: u64,
+        total_claimed_users: u64,
+        total_claimed_amount: u64,
+    }
 
     // =========================================================================
     // Private Records
@@ -11,6 +31,7 @@ program zk_airdrop_claim.aleo {
         campaign_id: u64,
         tier: u8,
         amount: u64,
+        deadline: u64,
     }
 
     record Reward {
@@ -24,7 +45,8 @@ program zk_airdrop_claim.aleo {
     // =========================================================================
 
     mapping admin: u8 => address;
-    mapping campaign_claim_count: u64 => u64;
+    mapping campaigns: u64 => Campaign;
+    mapping claimed: field => bool;
 
     // =========================================================================
     // Admin Setup
@@ -41,6 +63,93 @@ program zk_airdrop_claim.aleo {
         };
     }
 
+    fn transfer_admin(
+        public new_admin: address,
+    ) -> Final {
+        let caller: address = self.caller;
+
+        return final {
+            let current_admin: address = admin.get(0u8);
+            assert_eq(caller, current_admin);
+
+            admin.set(0u8, new_admin);
+        };
+    }
+
+    // =========================================================================
+    // Campaign Management
+    // =========================================================================
+
+    fn create_campaign(
+        public campaign_id: u64,
+        public deadline: u64,
+    ) -> Final {
+        let caller: address = self.caller;
+
+        return final {
+            let current_admin: address = admin.get(0u8);
+            assert_eq(caller, current_admin);
+
+            let exists: bool = campaigns.contains(campaign_id);
+            assert(!exists);
+
+            let campaign: Campaign = Campaign {
+                enabled: true,
+                deadline: deadline,
+                total_claimed_users: 0u64,
+                total_claimed_amount: 0u64,
+            };
+
+            campaigns.set(campaign_id, campaign);
+        };
+    }
+
+    fn set_campaign_enabled(
+        public campaign_id: u64,
+        public enabled: bool,
+    ) -> Final {
+        let caller: address = self.caller;
+
+        return final {
+            let current_admin: address = admin.get(0u8);
+            assert_eq(caller, current_admin);
+
+            let old_campaign: Campaign = campaigns.get(campaign_id);
+
+            let new_campaign: Campaign = Campaign {
+                enabled: enabled,
+                deadline: old_campaign.deadline,
+                total_claimed_users: old_campaign.total_claimed_users,
+                total_claimed_amount: old_campaign.total_claimed_amount,
+            };
+
+            campaigns.set(campaign_id, new_campaign);
+        };
+    }
+
+    fn set_campaign_deadline(
+        public campaign_id: u64,
+        public new_deadline: u64,
+    ) -> Final {
+        let caller: address = self.caller;
+
+        return final {
+            let current_admin: address = admin.get(0u8);
+            assert_eq(caller, current_admin);
+
+            let old_campaign: Campaign = campaigns.get(campaign_id);
+
+            let new_campaign: Campaign = Campaign {
+                enabled: old_campaign.enabled,
+                deadline: new_deadline,
+                total_claimed_users: old_campaign.total_claimed_users,
+                total_claimed_amount: old_campaign.total_claimed_amount,
+            };
+
+            campaigns.set(campaign_id, new_campaign);
+        };
+    }
+
     // =========================================================================
     // Issue Eligibility
     // =========================================================================
@@ -50,6 +159,7 @@ program zk_airdrop_claim.aleo {
         campaign_id: u64,
         tier: u8,
         amount: u64,
+        deadline: u64,
     ) -> (Eligibility, Final) {
         let caller: address = self.caller;
 
@@ -61,11 +171,16 @@ program zk_airdrop_claim.aleo {
             campaign_id: campaign_id,
             tier: tier,
             amount: amount,
+            deadline: deadline,
         };
 
         return (eligibility, final {
             let current_admin: address = admin.get(0u8);
             assert_eq(caller, current_admin);
+
+            let campaign: Campaign = campaigns.get(campaign_id);
+            assert(campaign.enabled);
+            assert(deadline <= campaign.deadline);
         });
     }
 
@@ -75,16 +190,19 @@ program zk_airdrop_claim.aleo {
 
     fn claim_airdrop(
         eligibility: Eligibility,
+        public current_time: u64,
     ) -> (Reward, Final) {
-        // 用 self.signer 校验原始交易签名者。
-        // 这样即使通过测试 program / router program 间接调用，也能识别真正用户。
         assert_eq(self.signer, eligibility.owner);
         assert(eligibility.amount > 0u64);
         assert(eligibility.tier > 0u8);
+        assert(current_time <= eligibility.deadline);
 
-        // record 不能直接进入 final block。
-        // 所以先把 final 需要用的 campaign_id 提取出来。
         let claim_campaign_id: u64 = eligibility.campaign_id;
+        let claim_amount: u64 = eligibility.amount;
+        let claim_key: field = build_claim_key(
+            self.signer,
+            eligibility.campaign_id,
+        );
 
         let reward: Reward = Reward {
             owner: eligibility.owner,
@@ -93,15 +211,24 @@ program zk_airdrop_claim.aleo {
         };
 
         return (reward, final {
-            let current_count: u64 = campaign_claim_count.get_or_use(
-                claim_campaign_id,
-                0u64,
-            );
+            let campaign: Campaign = campaigns.get(claim_campaign_id);
 
-            campaign_claim_count.set(
-                claim_campaign_id,
-                current_count + 1u64,
-            );
+            assert(campaign.enabled);
+            assert(current_time <= campaign.deadline);
+
+            let already_claimed: bool = claimed.get_or_use(claim_key, false);
+            assert(!already_claimed);
+
+            claimed.set(claim_key, true);
+
+            let updated_campaign: Campaign = Campaign {
+                enabled: campaign.enabled,
+                deadline: campaign.deadline,
+                total_claimed_users: campaign.total_claimed_users + 1u64,
+                total_claimed_amount: campaign.total_claimed_amount + claim_amount,
+            };
+
+            campaigns.set(claim_campaign_id, updated_campaign);
         });
     }
 
