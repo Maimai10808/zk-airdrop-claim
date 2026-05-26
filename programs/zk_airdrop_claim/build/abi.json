@@ -1,0 +1,315 @@
+{
+  "program": "zk_airdrop_claim.aleo",
+  "structs": [],
+  "records": [
+    {
+      "path": [
+        "Eligibility"
+      ],
+      "fields": [
+        {
+          "name": "owner",
+          "ty": {
+            "Primitive": "Address"
+          },
+          "mode": "None"
+        },
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "tier",
+          "ty": {
+            "Primitive": {
+              "UInt": "U8"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "amount",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          },
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "path": [
+        "Reward"
+      ],
+      "fields": [
+        {
+          "name": "owner",
+          "ty": {
+            "Primitive": "Address"
+          },
+          "mode": "None"
+        },
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "amount",
+          "ty": {
+            "Primitive": {
+              "UInt": "U64"
+            }
+          },
+          "mode": "None"
+        }
+      ]
+    }
+  ],
+  "mappings": [
+    {
+      "name": "admin",
+      "key": {
+        "Primitive": {
+          "UInt": "U8"
+        }
+      },
+      "value": {
+        "Primitive": "Address"
+      }
+    },
+    {
+      "name": "campaign_claim_count",
+      "key": {
+        "Primitive": {
+          "UInt": "U64"
+        }
+      },
+      "value": {
+        "Primitive": {
+          "UInt": "U64"
+        }
+      }
+    }
+  ],
+  "storage_variables": [],
+  "functions": [
+    {
+      "name": "initialize_admin",
+      "is_final": true,
+      "inputs": [],
+      "outputs": [
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "issue_eligibility",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "receiver",
+          "ty": {
+            "Plaintext": {
+              "Primitive": "Address"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "campaign_id",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "tier",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U8"
+              }
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "amount",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "None"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": {
+            "Record": {
+              "path": [
+                "Eligibility"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "claim_airdrop",
+      "is_final": true,
+      "inputs": [
+        {
+          "name": "eligibility",
+          "ty": {
+            "Record": {
+              "path": [
+                "Eligibility"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "ty": "Final",
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "split_reward",
+      "is_final": false,
+      "inputs": [
+        {
+          "name": "reward",
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "amount",
+          "ty": {
+            "Plaintext": {
+              "Primitive": {
+                "UInt": "U64"
+              }
+            }
+          },
+          "mode": "None"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        }
+      ]
+    },
+    {
+      "name": "merge_rewards",
+      "is_final": false,
+      "inputs": [
+        {
+          "name": "reward_a",
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        },
+        {
+          "name": "reward_b",
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        }
+      ],
+      "outputs": [
+        {
+          "ty": {
+            "Record": {
+              "path": [
+                "Reward"
+              ],
+              "program": "zk_airdrop_claim.aleo"
+            }
+          },
+          "mode": "None"
+        }
+      ]
+    }
+  ]
+}
