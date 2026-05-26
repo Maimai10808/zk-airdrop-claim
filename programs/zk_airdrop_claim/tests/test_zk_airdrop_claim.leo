@@ -1,8 +1,43 @@
+// ============================================================================
+// Test Suite for zk_airdrop_claim.aleo
+// ============================================================================
+//
+// 本测试文件用于验证 ZK Airdrop Claim 合约的核心业务逻辑。
+//
+// 覆盖内容：
+// 1. 初始化管理员
+// 2. 创建 campaign 并签发 Eligibility
+// 3. 用户正常领取 Reward
+// 4. Reward 拆分
+// 5. 同一用户领取多个不同 campaign
+// 6. 重复领取失败
+// 7. campaign 关闭后领取失败
+// 8. 超过 deadline 后领取失败
+// 9. 未初始化 admin 时不能创建 campaign
+// 10. 未初始化 admin 时不能签发 Eligibility
+//
+// 注意：
+// - @should_fail 表示该测试预期失败。
+// - 如果函数内部真的失败了，测试反而会通过。
+// - 这适合测试权限校验、过期校验、重复领取校验等安全逻辑。
+// ============================================================================
+
 import zk_airdrop_claim.aleo;
 
 program test_zk_airdrop_claim.aleo {
     @noupgrade
     constructor() {}
+
+    // =========================================================================
+    // 1. Test Admin Initialization
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 initialize_admin 可以正常执行。
+    //
+    // 预期：
+    // - self.caller 被设置为 admin[0u8]
+    // - final block 成功执行
 
     @test
     fn test_init_admin() -> Final {
@@ -12,6 +47,23 @@ program test_zk_airdrop_claim.aleo {
             admin_final.run();
         };
     }
+
+    // =========================================================================
+    // 2. Test Campaign Creation and Eligibility Issuance
+    // =========================================================================
+    //
+    // 目的：
+    // 验证管理员可以：
+    // - 初始化 admin
+    // - 创建 campaign
+    // - 给用户签发 Eligibility private record
+    //
+    // 验证点：
+    // - Eligibility.owner 正确
+    // - Eligibility.campaign_id 正确
+    // - Eligibility.tier 正确
+    // - Eligibility.amount 正确
+    // - Eligibility.deadline 正确
 
     @test
     fn test_issue_campaign() -> Final {
@@ -46,6 +98,29 @@ program test_zk_airdrop_claim.aleo {
             issue_final.run();
         };
     }
+
+    // =========================================================================
+    // 3. Test Normal Airdrop Claim
+    // =========================================================================
+    //
+    // 目的：
+    // 验证用户可以消耗 Eligibility，成功领取 Reward。
+    //
+    // 流程：
+    // 1. 初始化 admin
+    // 2. 创建 campaign
+    // 3. 签发 Eligibility
+    // 4. 用户调用 claim_airdrop
+    //
+    // 验证点：
+    // - Reward.owner 是用户本人
+    // - Reward.campaign_id 正确
+    // - Reward.amount 正确
+    //
+    // 同时 final block 会更新：
+    // - claimed[claim_key] = true
+    // - campaign.total_claimed_users += 1
+    // - campaign.total_claimed_amount += amount
 
     @test
     fn test_claim() -> Final {
@@ -84,6 +159,22 @@ program test_zk_airdrop_claim.aleo {
             claim_final.run();
         };
     }
+
+    // =========================================================================
+    // 4. Test Reward Split
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 Reward 可以被拆成两个新的 Reward。
+    //
+    // 流程：
+    // 1. 正常领取一个 1000 amount 的 Reward
+    // 2. 调用 split_reward(reward, 300)
+    //
+    // 预期：
+    // - part_a.amount = 300
+    // - part_b.amount = 700
+    // - 两个新 Reward 的 owner 和 campaign_id 保持一致
 
     @test
     fn test_split() -> Final {
@@ -131,6 +222,24 @@ program test_zk_airdrop_claim.aleo {
             claim_final.run();
         };
     }
+
+    // =========================================================================
+    // 5. Test Multi-Campaign Claim
+    // =========================================================================
+    //
+    // 目的：
+    // 验证同一个用户可以领取不同 campaign 的奖励。
+    //
+    // 为什么需要这个测试？
+    // 因为合约限制的是：
+    //
+    //     同一个 user + 同一个 campaign 只能领取一次
+    //
+    // 但同一个 user 领取不同 campaign 应该是允许的。
+    //
+    // 预期：
+    // - 用户可以领取 campaign 1 的 300 reward
+    // - 用户可以领取 campaign 2 的 700 reward
 
     @test
     fn test_multi_campaign() -> Final {
@@ -200,6 +309,25 @@ program test_zk_airdrop_claim.aleo {
         };
     }
 
+    // =========================================================================
+    // 6. Test Double Claim Should Fail
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 claimed mapping 能防止重复领取。
+    //
+    // 流程：
+    // 1. 用户领取 campaign 1 第一次，成功。
+    // 2. 管理员再次给同一个用户、同一个 campaign 签发 Eligibility。
+    // 3. 用户尝试第二次 claim。
+    //
+    // 预期：
+    // - 第二次 claim_final.run() 失败。
+    //
+    // 失败原因：
+    // claimed[claim_key] 已经是 true。
+    // claim_airdrop 中的 assert(!already_claimed) 会失败。
+
     @test
     @should_fail
     fn test_double_claim_fail() -> Final {
@@ -263,6 +391,25 @@ program test_zk_airdrop_claim.aleo {
         };
     }
 
+    // =========================================================================
+    // 7. Test Claim Disabled Campaign Should Fail
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 campaign 被关闭后不能领取。
+    //
+    // 流程：
+    // 1. 创建 campaign
+    // 2. 签发 Eligibility
+    // 3. 管理员关闭 campaign
+    // 4. 用户尝试 claim
+    //
+    // 预期：
+    // - claim_final.run() 失败。
+    //
+    // 失败原因：
+    // claim_airdrop final block 中的 assert(campaign.enabled) 失败。
+
     @test
     @should_fail
     fn test_claim_disabled_fail() -> Final {
@@ -310,6 +457,24 @@ program test_zk_airdrop_claim.aleo {
         };
     }
 
+    // =========================================================================
+    // 8. Test Expired Claim Should Fail
+    // =========================================================================
+    //
+    // 目的：
+    // 验证超过 Eligibility deadline 后不能领取。
+    //
+    // 当前设置：
+    // - campaign_deadline = 2000
+    // - eligibility.deadline = 1800
+    // - current_time = 1900
+    //
+    // 预期：
+    // - claim_final.run() 失败。
+    //
+    // 失败原因：
+    // claim_airdrop 中的 assert(current_time <= eligibility.deadline) 失败。
+
     @test
     @should_fail
     fn test_claim_expired_fail() -> Final {
@@ -350,6 +515,20 @@ program test_zk_airdrop_claim.aleo {
         };
     }
 
+    // =========================================================================
+    // 9. Test Create Campaign Without Admin Should Fail
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 admin 未初始化时不能创建 campaign。
+    //
+    // 预期：
+    // - campaign_final.run() 失败。
+    //
+    // 失败原因：
+    // create_campaign final block 中调用 admin.get(0u8)，
+    // 但 admin 尚未设置，所以会失败。
+
     @test
     @should_fail
     fn test_create_no_admin_fail() -> Final {
@@ -366,6 +545,20 @@ program test_zk_airdrop_claim.aleo {
             campaign_final.run();
         };
     }
+
+    // =========================================================================
+    // 10. Test Issue Eligibility Without Admin Should Fail
+    // =========================================================================
+    //
+    // 目的：
+    // 验证 admin 未初始化时不能签发 Eligibility。
+    //
+    // 预期：
+    // - issue_final.run() 失败。
+    //
+    // 失败原因：
+    // issue_eligibility final block 中调用 admin.get(0u8)，
+    // 但 admin 尚未初始化，所以会失败。
 
     @test
     @should_fail
