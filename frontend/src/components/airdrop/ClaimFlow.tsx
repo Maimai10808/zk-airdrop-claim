@@ -40,34 +40,33 @@ export function ClaimFlow() {
           <CardTitle>Claim Flow</CardTitle>
         </CardHeader>
 
-        <CardContent className="grid gap-4 md:grid-cols-4">
-          <StaggerContainer className="grid gap-4 md:grid-cols-4">
+        <CardContent>
+          <StaggerContainer className="grid items-stretch gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {steps.map((step, index) => {
               const Icon = step.icon;
 
               return (
-                <StaggerItem key={step.title}>
-                  <ProofStepMotion index={index} active={index === 0}>
-                    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
-                      <div className="flex flex-col gap-3 md:flex-row md:items-start">
-                        <div className="flex items-center md:items-start">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-zinc-800/60 font-mono text-emerald-300">
-                            {String(index + 1).padStart(2, "0")}
-                          </div>
+                <StaggerItem key={step.title} className="h-full">
+                  <ProofStepMotion
+                    index={index}
+                    active={index === 0}
+                    className="h-full"
+                  >
+                    <div className="flex h-full min-h-[190px] flex-col rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-zinc-800/60 font-mono text-emerald-300">
+                          {String(index + 1).padStart(2, "0")}
                         </div>
 
-                        <div className="flex-1">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <Icon className="h-5 w-5 text-emerald-400" />
-                              <h3 className="font-semibold">{step.title}</h3>
-                            </div>
-                          </div>
+                        <Icon className="h-5 w-5 shrink-0 text-emerald-400" />
+                      </div>
 
-                          <p className="mt-2 text-sm leading-6 text-zinc-400">
-                            {step.description}
-                          </p>
-                        </div>
+                      <div className="mt-4 flex flex-1 flex-col">
+                        <h3 className="font-semibold">{step.title}</h3>
+
+                        <p className="mt-2 flex-1 text-sm leading-6 text-zinc-400">
+                          {step.description}
+                        </p>
                       </div>
                     </div>
                   </ProofStepMotion>
