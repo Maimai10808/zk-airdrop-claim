@@ -6,10 +6,12 @@ import { EligibilityPanel } from "@/components/airdrop/EligibilityPanel";
 import { RewardPanel } from "@/components/airdrop/RewardPanel";
 import { NetworkStatus } from "@/components/network/NetworkStatus";
 import { WalletPanel } from "@/components/wallet/WalletPanel";
+import { ZkCircuitBackground } from "@/components/motion";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen bg-black px-6 py-10">
+    <main className="relative min-h-screen bg-black px-6 py-10">
+      <ZkCircuitBackground />
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
         <AirdropHero />
 
