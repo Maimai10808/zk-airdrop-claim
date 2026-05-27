@@ -20,6 +20,7 @@ import {
 } from "@/constants/airdrop";
 import { getCampaign } from "@/services/aleoRestClient";
 import { getDevnetAccounts } from "@/services/devnetAccountClient";
+import { getDevnetClaimStatus } from "@/services/devnetClaimStatusClient";
 import {
   claimAirdropDevnet,
   issueEligibilityDevnet,
@@ -30,6 +31,12 @@ import type {
   EligibilityRecord,
   RewardRecord,
 } from "@/types/airdrop";
+
+const ACCOUNT_ALREADY_CLAIMED_MESSAGE =
+  "This account has already claimed this campaign.";
+
+const ACCOUNT_ALREADY_CLAIMED_ISSUE_MESSAGE =
+  "This account has already claimed this campaign. A claimed account cannot issue a new eligibility record for the same campaign.";
 
 /**
  * sleep 只用于 mock fallback 流程。
@@ -198,6 +205,10 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
   selectedDevnetAccount: null,
   isLoadingDevnetAccounts: false,
   devnetAccountError: null,
+  accountClaimStatus: "unknown",
+  accountClaimKey: null,
+  accountClaimStatusError: null,
+  isCheckingAccountClaimStatus: false,
   claimStatus: "idle",
 
   /**
@@ -222,6 +233,10 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         campaignNotFound: campaign === null,
         isLoadingCampaign: false,
       });
+
+      if (ALEO_CONFIG.isDevnet) {
+        await get().loadSelectedAccountClaimStatus(campaignId);
+      }
     } catch (error) {
       set({
         isLoadingCampaign: false,
@@ -254,6 +269,10 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         devnetAccountError:
           accounts.length > 0 ? null : "No local devnet accounts configured.",
       });
+
+      if (selected) {
+        await get().loadSelectedAccountClaimStatus(get().campaignId);
+      }
     } catch (error) {
       set({
         isLoadingDevnetAccounts: false,
@@ -261,6 +280,64 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           error instanceof Error
             ? error.message
             : "Failed to load devnet accounts",
+      });
+    }
+  },
+
+  loadSelectedAccountClaimStatus: async (campaignId = get().campaignId) => {
+    if (!ALEO_CONFIG.isDevnet) {
+      set({
+        accountClaimStatus: "unknown",
+        accountClaimKey: null,
+        accountClaimStatusError: null,
+        isCheckingAccountClaimStatus: false,
+      });
+      return;
+    }
+
+    const selectedDevnetAccount = get().selectedDevnetAccount;
+
+    if (!selectedDevnetAccount) {
+      set({
+        accountClaimStatus: "unknown",
+        accountClaimKey: null,
+        accountClaimStatusError: null,
+        isCheckingAccountClaimStatus: false,
+      });
+      return;
+    }
+
+    try {
+      set({
+        accountClaimStatus: "checking",
+        accountClaimStatusError: null,
+        isCheckingAccountClaimStatus: true,
+      });
+
+      const result = await getDevnetClaimStatus({
+        accountId: selectedDevnetAccount.id,
+        campaignId,
+      });
+
+      if (get().selectedDevnetAccount?.id !== selectedDevnetAccount.id) {
+        return;
+      }
+
+      set({
+        accountClaimStatus: result.claimed ? "claimed" : "not_claimed",
+        accountClaimKey: result.claimKey,
+        accountClaimStatusError: null,
+        isCheckingAccountClaimStatus: false,
+      });
+    } catch (error) {
+      set({
+        accountClaimStatus: "error",
+        accountClaimKey: null,
+        accountClaimStatusError:
+          error instanceof Error
+            ? error.message
+            : "Failed to load account claim status",
+        isCheckingAccountClaimStatus: false,
       });
     }
   },
@@ -288,7 +365,12 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
       claimError: null,
       claimErrorDetails: null,
       claimStatus: "idle",
+      accountClaimStatus: "checking",
+      accountClaimKey: null,
+      accountClaimStatusError: null,
     });
+
+    void get().loadSelectedAccountClaimStatus(get().campaignId);
   },
 
   /**
@@ -329,6 +411,23 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
 
         if (!selectedDevnetAccount) {
           throw new Error("Select a devnet account first.");
+        }
+
+        const accountClaimStatus = get().accountClaimStatus;
+
+        if (accountClaimStatus === "claimed") {
+          throw new Error(ACCOUNT_ALREADY_CLAIMED_ISSUE_MESSAGE);
+        }
+
+        if (accountClaimStatus === "checking") {
+          throw new Error("Checking claim status. Please wait before issuing eligibility.");
+        }
+
+        if (
+          accountClaimStatus === "unknown" ||
+          accountClaimStatus === "error"
+        ) {
+          throw new Error("Refresh claim status before issuing eligibility.");
         }
 
         const result = await issueEligibilityDevnet({
@@ -484,6 +583,21 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           );
         }
 
+        if (get().accountClaimStatus === "claimed") {
+          throw new Error(ACCOUNT_ALREADY_CLAIMED_MESSAGE);
+        }
+
+        if (get().accountClaimStatus === "checking") {
+          throw new Error("Checking claim status. Please wait before claiming.");
+        }
+
+        if (
+          get().accountClaimStatus === "unknown" ||
+          get().accountClaimStatus === "error"
+        ) {
+          throw new Error("Refresh claim status before claiming.");
+        }
+
         const rawEligibilityRecord =
           selectedEligibility.rawRecord ?? get().rawEligibilityRecord;
 
@@ -493,6 +607,7 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
 
         const result = await claimAirdropDevnet({
           accountId: selectedDevnetAccount.id,
+          campaignId: selectedEligibility.campaignId,
           eligibilityRecord: rawEligibilityRecord,
           currentTime: DEFAULT_CLAIM_CURRENT_TIME,
         });
@@ -542,6 +657,9 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
          * 所以真实 claim 成功后，需要重新读取 campaign。
          */
         await get().loadCampaign(selectedEligibility.campaignId);
+        await get().loadSelectedAccountClaimStatus(
+          selectedEligibility.campaignId,
+        );
         return;
       }
 
@@ -604,6 +722,12 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           error instanceof Error ? error.message : AIRDROP_MESSAGES.claimFailed,
         claimErrorDetails: getDevnetErrorDetails(error),
       });
+
+      if (ALEO_CONFIG.isDevnet) {
+        await get().loadSelectedAccountClaimStatus(
+          selectedEligibility.campaignId,
+        );
+      }
     }
   },
 

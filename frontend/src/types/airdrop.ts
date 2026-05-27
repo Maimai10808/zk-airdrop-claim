@@ -176,6 +176,18 @@ export type ClaimStatus =
   | "failed";
 
 /**
+ * 当前选中账户对当前 campaign 的链上领取状态。
+ *
+ * 该状态优先来自 claimed mapping 查询，不能只依赖前端 rewards 数组。
+ */
+export type AccountClaimStatus =
+  | "unknown"
+  | "checking"
+  | "not_claimed"
+  | "claimed"
+  | "error";
+
+/**
  * Zustand 空投状态结构。
  *
  * 这里集中描述页面需要的全部状态和动作。
@@ -266,12 +278,26 @@ export type AirdropState = {
   devnetAccountError: string | null;
 
   /**
+   * 当前选中账户在 claimed mapping 中的状态。
+   */
+  accountClaimStatus: AccountClaimStatus;
+
+  /**
+   * 当前选中账户 + campaignId 计算出的 claimed mapping key。
+   */
+  accountClaimKey: string | null;
+
+  accountClaimStatusError: string | null;
+  isCheckingAccountClaimStatus: boolean;
+
+  /**
    * 当前 claim 状态。
    */
   claimStatus: ClaimStatus;
 
   loadCampaign: (campaignId?: string) => Promise<void>;
   loadDevnetAccounts: () => Promise<void>;
+  loadSelectedAccountClaimStatus: (campaignId?: string) => Promise<void>;
   selectDevnetAccount: (accountId: string) => void;
   scanEligibility: (address: string, campaignId?: string) => Promise<void>;
   useMockEligibilityFallback: (address: string, campaignId?: string) => void;

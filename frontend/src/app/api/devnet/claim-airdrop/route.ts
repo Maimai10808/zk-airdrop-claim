@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { ALEO_CONFIG } from "@/config/aleo";
 import { getDevnetAccountById } from "@/config/devnetAccounts";
+import { computeClaimKey } from "@/services/server/claimKey";
 import {
   executeLeoFunction,
   isLeoCliError,
@@ -10,6 +12,7 @@ export const runtime = "nodejs";
 
 type ClaimAirdropBody = {
   accountId?: string;
+  campaignId?: string;
   eligibilityRecord?: string;
   currentTime?: string;
 };
@@ -58,9 +61,53 @@ function extractRewardRecord(stdout: string) {
   );
 }
 
+function buildDevnetClaimedUrl(claimKey: string) {
+  const endpoint =
+    process.env.ALEO_DEVNET_ENDPOINT ??
+    process.env.NEXT_PUBLIC_ALEO_API_BASE_URL ??
+    "http://localhost:3030";
+  const network =
+    process.env.ALEO_DEVNET_NETWORK ??
+    process.env.NEXT_PUBLIC_ALEO_NETWORK ??
+    "testnet";
+  const programId =
+    process.env.NEXT_PUBLIC_ALEO_PROGRAM_ID ?? ALEO_CONFIG.programId;
+
+  return `${endpoint.replace(/\/$/, "")}/${network}/program/${programId}/mapping/${ALEO_CONFIG.mappings.claimed}/${claimKey}`;
+}
+
+async function hasClaimedOnChain(address: string, campaignId?: string) {
+  if (!campaignId) {
+    return false;
+  }
+
+  const claimKey = computeClaimKey(address, campaignId);
+  const response = await fetch(buildDevnetClaimedUrl(claimKey), {
+    cache: "no-store",
+  });
+
+  if (response.status === 404) {
+    return false;
+  }
+
+  if (!response.ok) {
+    return false;
+  }
+
+  return /\btrue\b/i.test(await response.text());
+}
+
+function hasInsufficientBalanceError(output: string) {
+  return /insufficient|not enough|does not have enough|can't pay|cannot pay|unable to pay/i.test(
+    output,
+  );
+}
+
 export async function POST(request: NextRequest) {
   let stdout = "";
   let stderr = "";
+  let accountAddress = "";
+  let campaignId: string | undefined;
 
   try {
     const body = (await request.json()) as ClaimAirdropBody;
@@ -80,6 +127,8 @@ export async function POST(request: NextRequest) {
     }
 
     const account = getDevnetAccountById(body.accountId);
+    accountAddress = account.address;
+    campaignId = body.campaignId;
 
     const result = await executeLeoFunction(
       "claim_airdrop",
@@ -112,14 +161,18 @@ export async function POST(request: NextRequest) {
 
     const combinedOutput = `${stdout}\n${stderr}`;
     const isRejected = /Transaction rejected/i.test(combinedOutput);
-    const isBalanceError = /insufficient|balance|fee/i.test(combinedOutput);
+    const isBalanceError = hasInsufficientBalanceError(combinedOutput);
+    const alreadyClaimed =
+      isRejected && (await hasClaimedOnChain(accountAddress, campaignId));
     const message = isBalanceError
       ? "The selected devnet account does not have enough public credits to pay the claim fee."
-      : isRejected
+      : alreadyClaimed
         ? "This account has already claimed this campaign."
-        : error instanceof Error
-          ? error.message
-          : "Failed to claim airdrop";
+        : isRejected
+          ? "claim_airdrop was rejected on-chain. Check Leo CLI details below."
+          : error instanceof Error
+            ? error.message
+            : "Failed to claim airdrop";
 
     return NextResponse.json(
       {

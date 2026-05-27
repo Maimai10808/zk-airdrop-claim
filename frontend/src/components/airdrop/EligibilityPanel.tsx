@@ -28,6 +28,7 @@ export function EligibilityPanel() {
     issueTxId,
     rawEligibilityRecord,
     selectedDevnetAccount,
+    accountClaimStatus,
     isScanning,
     scanError,
     scanEligibility,
@@ -45,6 +46,10 @@ export function EligibilityPanel() {
   };
 
   const needsDevnetAccount = ALEO_CONFIG.isDevnet && !selectedDevnetAccount;
+  const issueDisabledByClaimStatus =
+    ALEO_CONFIG.isDevnet && accountClaimStatus !== "not_claimed";
+  const issueDisabled =
+    isScanning || needsDevnetAccount || issueDisabledByClaimStatus;
 
   return (
     <AnimatedPanel>
@@ -207,17 +212,13 @@ export function EligibilityPanel() {
               ) : null}
 
               <motion.div
-                whileHover={
-                  !isScanning && !needsDevnetAccount ? { y: -2 } : undefined
-                }
-                whileTap={
-                  !isScanning && !needsDevnetAccount ? { scale: 0.98 } : undefined
-                }
+                whileHover={!issueDisabled ? { y: -2 } : undefined}
+                whileTap={!issueDisabled ? { scale: 0.98 } : undefined}
                 transition={{ type: "spring", stiffness: 420, damping: 26 }}
               >
                 <Button
                   onClick={handleScan}
-                  disabled={isScanning || needsDevnetAccount}
+                  disabled={issueDisabled}
                   className="mt-5 bg-emerald-500 text-black hover:bg-emerald-400"
                 >
                   {isScanning ? (
@@ -238,6 +239,27 @@ export function EligibilityPanel() {
               {needsDevnetAccount ? (
                 <p className="mt-3 text-center text-xs text-zinc-500">
                   Select a devnet account first.
+                </p>
+              ) : null}
+
+              {ALEO_CONFIG.isDevnet && accountClaimStatus === "claimed" ? (
+                <p className="mt-3 text-center text-xs text-red-400">
+                  This account already claimed this campaign. Eligibility
+                  issuing is disabled.
+                </p>
+              ) : null}
+
+              {ALEO_CONFIG.isDevnet && accountClaimStatus === "checking" ? (
+                <p className="mt-3 text-center text-xs text-zinc-500">
+                  Checking claim status...
+                </p>
+              ) : null}
+
+              {ALEO_CONFIG.isDevnet &&
+              (accountClaimStatus === "unknown" ||
+                accountClaimStatus === "error") ? (
+                <p className="mt-3 text-center text-xs text-red-400">
+                  Refresh claim status before issuing eligibility.
                 </p>
               ) : null}
 

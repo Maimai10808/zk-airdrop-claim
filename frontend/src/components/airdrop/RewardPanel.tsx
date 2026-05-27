@@ -39,51 +39,74 @@ export function RewardPanel() {
               {rewards.map((reward) => (
                 <StaggerItem key={reward.id}>
                   <RecordCardMotion className="p-5">
-                    <div className="grid items-center gap-4 md:grid-cols-[1.5fr_1fr_0.9fr_0.8fr_1.2fr]">
-                      <div>
-                        <div className="font-mono text-sm text-zinc-200">
+                    <div className="space-y-5">
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                        <div className="min-w-0">
+                          <div className="flex flex-wrap items-center gap-2">
+                            {reward.isDevMock ? (
+                              <Badge className="bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/10">
+                                DEV MOCK reward
+                              </Badge>
+                            ) : null}
+
+                            {reward.isDevnetRecord ? (
+                              <Badge className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/10">
+                                REAL DEVNET reward
+                              </Badge>
+                            ) : null}
+                          </div>
+
+                          <div className="mt-3">
+                            <div className="text-xs text-zinc-500">Account</div>
+                            <div className="mt-1 text-sm font-medium text-zinc-100">
+                              {reward.accountLabel ??
+                                shortAddress(reward.owner)}
+                            </div>
+                            <div className="mt-1 break-all font-mono text-xs leading-5 text-zinc-500">
+                              {shortAddress(reward.owner)}
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="shrink-0">
+                          <StatusPulse
+                            label={reward.status}
+                            tone={
+                              reward.status === "spent" ? "green" : "yellow"
+                            }
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4 sm:grid-cols-2 lg:grid-cols-[0.7fr_0.8fr_2.5fr]">
+                        <div>
+                          <div className="text-xs text-zinc-500">Campaign</div>
+                          <div className="mt-1 font-mono text-sm text-zinc-200">
+                            {reward.campaignId}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-zinc-500">Amount</div>
+                          <div className="mt-1 font-mono text-sm text-emerald-300">
+                            {reward.amount}
+                          </div>
+                        </div>
+
+                        <div className="min-w-0 sm:col-span-2 lg:col-span-1">
+                          <div className="text-xs text-zinc-500">Tx ID</div>
+                          <div className="mt-1 break-all font-mono text-xs leading-5 text-zinc-300">
+                            {reward.txId ?? "-"}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="border-t border-zinc-800/80 pt-3">
+                        <div className="text-xs text-zinc-500">
+                          Local Record ID
+                        </div>
+                        <div className="mt-1 break-all font-mono text-xs leading-5 text-zinc-500">
                           {reward.id}
-                        </div>
-                        <div className="mt-2 flex flex-wrap gap-2">
-                          {reward.isDevMock ? (
-                            <Badge className="bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/10">
-                              DEV MOCK reward
-                            </Badge>
-                          ) : null}
-                          {reward.isDevnetRecord ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/10">
-                              REAL DEVNET reward
-                            </Badge>
-                          ) : null}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-xs text-zinc-500">Account</div>
-                        <div className="mt-1 text-sm font-medium text-zinc-200">
-                          {reward.accountLabel ?? shortAddress(reward.owner)}
-                        </div>
-                      </div>
-
-                      <div className="font-mono text-sm text-zinc-200">
-                        {reward.campaignId}
-                      </div>
-                      <div className="font-mono text-sm text-emerald-300">
-                        {reward.amount}
-                      </div>
-                      <div className="flex items-center justify-between gap-3">
-                        <StatusPulse
-                          label={reward.status}
-                          tone={
-                            reward.status === "spent"
-                              ? "green"
-                              : reward.status === "unspent"
-                                ? "yellow"
-                                : "yellow"
-                          }
-                        />
-                        <div className="max-w-[220px] break-all font-mono text-xs text-zinc-300">
-                          {reward.txId ?? "-"}
                         </div>
                       </div>
                     </div>

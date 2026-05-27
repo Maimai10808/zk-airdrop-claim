@@ -22,6 +22,9 @@ export function ClaimPanel() {
     rawEligibilityRecord,
     rawRewardRecord,
     selectedDevnetAccount,
+    accountClaimStatus,
+    accountClaimKey,
+    accountClaimStatusError,
     isClaiming,
     claimStatus,
     claimError,
@@ -44,12 +47,35 @@ export function ClaimPanel() {
   const selectedAccountMismatch =
     Boolean(isRealDevnetClaim && selectedDevnetAccount && selectedEligibility) &&
     selectedEligibility?.owner !== selectedDevnetAccount?.address;
+  const claimDisabledByAccountStatus =
+    ALEO_CONFIG.isDevnet && accountClaimStatus !== "not_claimed";
   const claimDisabled =
     isClaiming ||
     !selectedEligibility ||
     missingParsedRecord ||
     missingDevnetAccount ||
-    selectedAccountMismatch;
+    selectedAccountMismatch ||
+    claimDisabledByAccountStatus;
+
+  const accountStatusLabel =
+    accountClaimStatus === "checking"
+      ? "Checking claim status..."
+      : accountClaimStatus === "not_claimed"
+        ? "Not Claimed"
+        : accountClaimStatus === "claimed"
+          ? "Already Claimed"
+          : accountClaimStatus === "error"
+            ? "Status Error"
+            : "Unknown";
+
+  const accountStatusTone =
+    accountClaimStatus === "not_claimed"
+      ? "green"
+      : accountClaimStatus === "claimed" || accountClaimStatus === "error"
+        ? "red"
+        : accountClaimStatus === "checking"
+          ? "blue"
+          : "zinc";
 
   return (
     <AnimatedPanel>
@@ -96,6 +122,22 @@ export function ClaimPanel() {
                 <p className="mt-1 break-all font-mono text-xs text-emerald-300">
                   {selectedDevnetAccount?.address ?? "-"}
                 </p>
+                <div className="mt-3">
+                  <StatusPulse
+                    label={accountStatusLabel}
+                    tone={accountStatusTone}
+                  />
+                </div>
+                {accountClaimKey ? (
+                  <p className="mt-3 break-all font-mono text-[11px] leading-5 text-zinc-500">
+                    Claim Key: {accountClaimKey}
+                  </p>
+                ) : null}
+                {accountClaimStatusError ? (
+                  <p className="mt-3 text-xs text-red-400">
+                    {accountClaimStatusError}
+                  </p>
+                ) : null}
               </div>
             ) : null}
 
@@ -103,9 +145,9 @@ export function ClaimPanel() {
             campaign?.totalClaimedUsers &&
             campaign.totalClaimedUsers !== "0u64" ? (
               <p className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs leading-5 text-yellow-200">
-                This campaign already has claimed users. The local devnet demo
-                now uses multiple local accounts, so a repeat claim should only
-                fail for the same selected account.
+                Other accounts may have already claimed this campaign. The
+                current selected account can still claim if its status is Not
+                Claimed.
               </p>
             ) : null}
 
@@ -151,6 +193,26 @@ export function ClaimPanel() {
             {missingDevnetAccount ? (
               <p className="mt-3 text-center text-xs text-zinc-500">
                 Select a devnet account first.
+              </p>
+            ) : null}
+
+            {ALEO_CONFIG.isDevnet && accountClaimStatus === "claimed" ? (
+              <p className="mt-3 text-center text-xs text-red-400">
+                This selected account has already claimed this campaign.
+              </p>
+            ) : null}
+
+            {ALEO_CONFIG.isDevnet && accountClaimStatus === "checking" ? (
+              <p className="mt-3 text-center text-xs text-zinc-500">
+                Checking claim status...
+              </p>
+            ) : null}
+
+            {ALEO_CONFIG.isDevnet &&
+            (accountClaimStatus === "unknown" ||
+              accountClaimStatus === "error") ? (
+              <p className="mt-3 text-center text-xs text-red-400">
+                Refresh claim status before claiming.
               </p>
             ) : null}
 

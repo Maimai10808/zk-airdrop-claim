@@ -10,6 +10,7 @@ export type DevnetIssueEligibilityParams = {
 
 export type DevnetClaimAirdropParams = {
   accountId: string;
+  campaignId?: string;
   eligibilityRecord: string;
   currentTime: string;
 };
