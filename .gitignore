@@ -1,4 +1,3 @@
-
 # Node / Next.js
 node_modules/
 .next/
@@ -21,10 +20,17 @@ snarkos
 snarkos/
 **/snarkos
 **/snarkos/
+
+node-*/
+node-data-*/
+**/node-*/
+**/node-data-*/
+
 validator-*/
 client-*/
 **/validator-*/
 **/client-*/
+
 *.log
 
 # macOS / editor
