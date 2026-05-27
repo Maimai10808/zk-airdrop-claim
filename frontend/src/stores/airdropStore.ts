@@ -1,13 +1,12 @@
 import { create } from "zustand";
 
 import { ALEO_CONFIG } from "@/config/aleo";
+import { AIRDROP_TASKS, getTaskEligibility } from "@/constants/airdropTasks";
 import {
   AIRDROP_MESSAGES,
   DEFAULT_CAMPAIGN_ID,
   DEFAULT_CLAIM_CURRENT_TIME,
-  DEFAULT_ELIGIBILITY_AMOUNT,
   DEFAULT_ELIGIBILITY_DEADLINE,
-  DEFAULT_ELIGIBILITY_TIER,
   ELIGIBILITY_RECORD_ID_PREFIX,
   MOCK_CONFIRM_DELAY_MS,
   MOCK_PREPARE_DELAY_MS,
@@ -21,6 +20,11 @@ import {
 import { getCampaign } from "@/services/aleoRestClient";
 import { getDevnetAccounts } from "@/services/devnetAccountClient";
 import { getDevnetClaimStatus } from "@/services/devnetClaimStatusClient";
+import {
+  completeNextTask,
+  getAccountTaskProgress,
+  resetAccountTaskProgress,
+} from "@/services/taskProgressStorage";
 import {
   claimAirdropDevnet,
   issueEligibilityDevnet,
@@ -37,6 +41,9 @@ const ACCOUNT_ALREADY_CLAIMED_MESSAGE =
 
 const ACCOUNT_ALREADY_CLAIMED_ISSUE_MESSAGE =
   "This account has already claimed this campaign. A claimed account cannot issue a new eligibility record for the same campaign.";
+
+const TASK_PROGRESS_LOCKED_MESSAGE =
+  "This account has already claimed this campaign. Task progress is locked.";
 
 /**
  * sleep 只用于 mock fallback 流程。
@@ -64,8 +71,8 @@ function createMockEligibilityRecord(
     id: createLocalRecordId(ELIGIBILITY_RECORD_ID_PREFIX),
     owner: address,
     campaignId,
-    tier: DEFAULT_ELIGIBILITY_TIER,
-    amount: DEFAULT_ELIGIBILITY_AMOUNT,
+    tier: "2u8",
+    amount: "1000u64",
     deadline: DEFAULT_ELIGIBILITY_DEADLINE,
     plaintext: buildMockEligibilityPlaintext(address),
     isDevMock: true,
@@ -83,6 +90,9 @@ function createDevnetEligibilityRecord(params: {
   txId: string | null;
   rawRecord: string;
   campaignId: string;
+  tier: string;
+  amount: string;
+  completedTaskIds?: string[];
 }): EligibilityRecord {
   return {
     id: createLocalRecordId(ELIGIBILITY_RECORD_ID_PREFIX),
@@ -90,13 +100,15 @@ function createDevnetEligibilityRecord(params: {
     accountId: params.accountId,
     accountLabel: params.accountLabel,
     campaignId: params.campaignId,
-    tier: DEFAULT_ELIGIBILITY_TIER,
-    amount: DEFAULT_ELIGIBILITY_AMOUNT,
+    tier: params.tier,
+    amount: params.amount,
     deadline: DEFAULT_ELIGIBILITY_DEADLINE,
     txId: params.txId ?? undefined,
     rawRecord: params.rawRecord,
     plaintext: params.rawRecord,
     isDevnetRecord: true,
+    completedTaskIds: params.completedTaskIds,
+    eligibilityTier: params.tier,
   };
 }
 
@@ -112,6 +124,8 @@ function createDevnetRewardRecord(params: {
   amount: string;
   txId: string | null;
   rawRecord: string;
+  completedTaskIds?: string[];
+  eligibilityTier?: string;
 }): RewardRecord {
   return {
     id: createLocalRecordId(REWARD_RECORD_ID_PREFIX),
@@ -124,6 +138,8 @@ function createDevnetRewardRecord(params: {
     txId: params.txId ?? undefined,
     rawRecord: params.rawRecord,
     isDevnetRecord: true,
+    completedTaskIds: params.completedTaskIds,
+    eligibilityTier: params.eligibilityTier,
   };
 }
 
@@ -139,6 +155,8 @@ function createMockRewardRecord(params: {
   campaignId: string;
   amount: string;
   txId: string;
+  completedTaskIds?: string[];
+  eligibilityTier?: string;
 }): RewardRecord {
   return {
     id: createLocalRecordId(REWARD_RECORD_ID_PREFIX),
@@ -150,6 +168,8 @@ function createMockRewardRecord(params: {
     status: "unspent",
     txId: params.txId,
     isDevMock: true,
+    completedTaskIds: params.completedTaskIds,
+    eligibilityTier: params.eligibilityTier,
   };
 }
 
@@ -209,6 +229,13 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
   accountClaimKey: null,
   accountClaimStatusError: null,
   isCheckingAccountClaimStatus: false,
+  completedTaskIds: [],
+  taskEligibility: getTaskEligibility([]),
+  isLoadingTaskProgress: false,
+  taskProgressError: null,
+  lastCompletedTaskId: null,
+  lastCompletedTaskTitle: null,
+  lastRewardAnimation: null,
   claimStatus: "idle",
 
   /**
@@ -272,6 +299,7 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
 
       if (selected) {
         await get().loadSelectedAccountClaimStatus(get().campaignId);
+        get().loadSelectedAccountTaskProgress();
       }
     } catch (error) {
       set({
@@ -342,6 +370,129 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
     }
   },
 
+  loadSelectedAccountTaskProgress: () => {
+    const selectedDevnetAccount = get().selectedDevnetAccount;
+
+    if (!selectedDevnetAccount) {
+      set({
+        completedTaskIds: [],
+        taskEligibility: getTaskEligibility([]),
+        isLoadingTaskProgress: false,
+        taskProgressError: null,
+      });
+      return;
+    }
+
+    try {
+      set({
+        isLoadingTaskProgress: true,
+        taskProgressError: null,
+      });
+
+      const progress = getAccountTaskProgress(selectedDevnetAccount.id);
+
+      set({
+        completedTaskIds: progress.completedTaskIds,
+        taskEligibility: getTaskEligibility(progress.completedTaskIds),
+        isLoadingTaskProgress: false,
+        taskProgressError: null,
+      });
+    } catch (error) {
+      set({
+        isLoadingTaskProgress: false,
+        taskProgressError:
+          error instanceof Error
+            ? error.message
+            : "Failed to load task progress",
+      });
+    }
+  },
+
+  completeSelectedAccountNextTask: () => {
+    const selectedDevnetAccount = get().selectedDevnetAccount;
+
+    if (!selectedDevnetAccount) {
+      set({ taskProgressError: "Select a devnet account first." });
+      return;
+    }
+
+    if (get().accountClaimStatus === "claimed") {
+      set({ taskProgressError: TASK_PROGRESS_LOCKED_MESSAGE });
+      return;
+    }
+
+    try {
+      const beforeCompletedIds = get().completedTaskIds;
+      const progress = completeNextTask(selectedDevnetAccount.id);
+      const completedTaskId = progress.completedTaskIds.find(
+        (taskId) => !beforeCompletedIds.includes(taskId),
+      );
+      const completedTask =
+        AIRDROP_TASKS.find((task) => task.id === completedTaskId) ?? null;
+      const nextEligibility = getTaskEligibility(progress.completedTaskIds);
+
+      set({
+        completedTaskIds: progress.completedTaskIds,
+        taskEligibility: nextEligibility,
+        taskProgressError: null,
+        lastCompletedTaskId: completedTask?.id ?? null,
+        lastCompletedTaskTitle: completedTask?.title ?? null,
+        lastRewardAnimation: completedTask
+          ? {
+              tier: nextEligibility.tier,
+              amount: nextEligibility.amount,
+              taskTitle: completedTask.title,
+              isFinal: nextEligibility.completedCount === AIRDROP_TASKS.length,
+            }
+          : null,
+      });
+    } catch (error) {
+      set({
+        taskProgressError:
+          error instanceof Error
+            ? error.message
+            : "Failed to complete next task",
+      });
+    }
+  },
+
+  resetSelectedAccountTasks: () => {
+    const selectedDevnetAccount = get().selectedDevnetAccount;
+
+    if (!selectedDevnetAccount) {
+      return;
+    }
+
+    if (get().accountClaimStatus === "claimed") {
+      set({ taskProgressError: TASK_PROGRESS_LOCKED_MESSAGE });
+      return;
+    }
+
+    try {
+      const progress = resetAccountTaskProgress(selectedDevnetAccount.id);
+
+      set({
+        completedTaskIds: progress.completedTaskIds,
+        taskEligibility: getTaskEligibility(progress.completedTaskIds),
+        taskProgressError: null,
+        lastCompletedTaskId: null,
+        lastCompletedTaskTitle: null,
+        lastRewardAnimation: null,
+      });
+    } catch (error) {
+      set({
+        taskProgressError:
+          error instanceof Error ? error.message : "Failed to reset tasks",
+      });
+    }
+  },
+
+  clearLastRewardAnimation: () => {
+    set({
+      lastRewardAnimation: null,
+    });
+  },
+
   selectDevnetAccount: (accountId: string) => {
     const account = get().devnetAccounts.find((item) => item.id === accountId);
 
@@ -368,9 +519,16 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
       accountClaimStatus: "checking",
       accountClaimKey: null,
       accountClaimStatusError: null,
+      completedTaskIds: [],
+      taskEligibility: getTaskEligibility([]),
+      taskProgressError: null,
+      lastCompletedTaskId: null,
+      lastCompletedTaskTitle: null,
+      lastRewardAnimation: null,
     });
 
     void get().loadSelectedAccountClaimStatus(get().campaignId);
+    get().loadSelectedAccountTaskProgress();
   },
 
   /**
@@ -430,11 +588,20 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           throw new Error("Refresh claim status before issuing eligibility.");
         }
 
+        const taskEligibility = get().taskEligibility;
+        const completedTaskIds = get().completedTaskIds;
+
+        if (!taskEligibility.isEligible) {
+          throw new Error(
+            "Complete at least one airdrop task before issuing eligibility.",
+          );
+        }
+
         const result = await issueEligibilityDevnet({
           accountId: selectedDevnetAccount.id,
           campaignId,
-          tier: DEFAULT_ELIGIBILITY_TIER,
-          amount: DEFAULT_ELIGIBILITY_AMOUNT,
+          tier: taskEligibility.tier,
+          amount: taskEligibility.amount,
           deadline: DEFAULT_ELIGIBILITY_DEADLINE,
         });
 
@@ -457,6 +624,9 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           txId: result.txId ?? null,
           rawRecord,
           campaignId,
+          tier: taskEligibility.tier,
+          amount: taskEligibility.amount,
+          completedTaskIds,
         });
 
         set({
@@ -630,6 +800,8 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
           amount: selectedEligibility.amount,
           txId: result.txId ?? null,
           rawRecord: rawRewardRecord,
+          completedTaskIds: selectedEligibility.completedTaskIds,
+          eligibilityTier: selectedEligibility.eligibilityTier,
         });
 
         set((state) => ({
@@ -698,6 +870,8 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         campaignId: selectedEligibility.campaignId,
         amount: selectedEligibility.amount,
         txId: mockTxId,
+        completedTaskIds: selectedEligibility.completedTaskIds,
+        eligibilityTier: selectedEligibility.eligibilityTier,
       });
 
       console.log("[airdrop] tx confirmed", reward);

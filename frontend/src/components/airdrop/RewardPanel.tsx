@@ -78,7 +78,7 @@ export function RewardPanel() {
                         </div>
                       </div>
 
-                      <div className="grid gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4 sm:grid-cols-2 lg:grid-cols-[0.7fr_0.8fr_2.5fr]">
+                      <div className="grid gap-4 rounded-2xl border border-zinc-800/80 bg-zinc-950/50 p-4 sm:grid-cols-2 lg:grid-cols-[0.7fr_0.55fr_0.8fr_0.75fr_2.5fr]">
                         <div>
                           <div className="text-xs text-zinc-500">Campaign</div>
                           <div className="mt-1 font-mono text-sm text-zinc-200">
@@ -87,9 +87,25 @@ export function RewardPanel() {
                         </div>
 
                         <div>
+                          <div className="text-xs text-zinc-500">Tier</div>
+                          <div className="mt-1 font-mono text-sm text-emerald-300">
+                            {reward.eligibilityTier ?? "-"}
+                          </div>
+                        </div>
+
+                        <div>
                           <div className="text-xs text-zinc-500">Amount</div>
                           <div className="mt-1 font-mono text-sm text-emerald-300">
                             {reward.amount}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-xs text-zinc-500">
+                            Completed Tasks
+                          </div>
+                          <div className="mt-1 font-mono text-sm text-zinc-200">
+                            {reward.completedTaskIds?.length ?? "-"}
                           </div>
                         </div>
 

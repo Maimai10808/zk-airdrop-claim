@@ -29,6 +29,8 @@ export function EligibilityPanel() {
     rawEligibilityRecord,
     selectedDevnetAccount,
     accountClaimStatus,
+    completedTaskIds,
+    taskEligibility,
     isScanning,
     scanError,
     scanEligibility,
@@ -48,8 +50,13 @@ export function EligibilityPanel() {
   const needsDevnetAccount = ALEO_CONFIG.isDevnet && !selectedDevnetAccount;
   const issueDisabledByClaimStatus =
     ALEO_CONFIG.isDevnet && accountClaimStatus !== "not_claimed";
+  const issueDisabledByTasks =
+    ALEO_CONFIG.isDevnet && !taskEligibility.isEligible;
   const issueDisabled =
-    isScanning || needsDevnetAccount || issueDisabledByClaimStatus;
+    isScanning ||
+    needsDevnetAccount ||
+    issueDisabledByClaimStatus ||
+    issueDisabledByTasks;
 
   return (
     <AnimatedPanel>
@@ -121,6 +128,17 @@ export function EligibilityPanel() {
                               </>
                             ) : null}
                           </div>
+
+                          {record.completedTaskIds ? (
+                            <div>
+                              <p className="text-zinc-500">
+                                Completed Tasks
+                              </p>
+                              <p className="font-mono text-zinc-200">
+                                {record.completedTaskIds.length}
+                              </p>
+                            </div>
+                          ) : null}
 
                           <div>
                             <p className="text-zinc-500">Owner</p>
@@ -208,6 +226,26 @@ export function EligibilityPanel() {
                   <p className="mt-1 break-all font-mono text-xs text-emerald-300">
                     {selectedDevnetAccount?.address ?? "-"}
                   </p>
+                  <div className="mt-3 grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-xs text-zinc-500">Tasks</p>
+                      <p className="font-mono text-xs text-zinc-200">
+                        {completedTaskIds.length}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500">Tier</p>
+                      <p className="font-mono text-xs text-emerald-300">
+                        {taskEligibility.tier}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-zinc-500">Amount</p>
+                      <p className="font-mono text-xs text-emerald-300">
+                        {taskEligibility.amount}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               ) : null}
 
@@ -260,6 +298,15 @@ export function EligibilityPanel() {
                 accountClaimStatus === "error") ? (
                 <p className="mt-3 text-center text-xs text-red-400">
                   Refresh claim status before issuing eligibility.
+                </p>
+              ) : null}
+
+              {ALEO_CONFIG.isDevnet &&
+              accountClaimStatus === "not_claimed" &&
+              !taskEligibility.isEligible ? (
+                <p className="mt-3 text-center text-xs text-yellow-200">
+                  Complete at least one airdrop task before issuing
+                  eligibility.
                 </p>
               ) : null}
 

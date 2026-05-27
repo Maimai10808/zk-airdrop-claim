@@ -1,4 +1,5 @@
 import { AirdropHero } from "@/components/airdrop/AirdropHero";
+import { AirdropTasksPanel } from "@/components/airdrop/AirdropTasksPanel";
 import { CampaignPanel } from "@/components/airdrop/CampaignPanel";
 import { ClaimFlow } from "@/components/airdrop/ClaimFlow";
 import { ClaimPanel } from "@/components/airdrop/ClaimPanel";
@@ -19,6 +20,7 @@ export default function HomePage() {
         <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
           <div className="flex flex-col gap-6">
             <ClaimFlow />
+            <AirdropTasksPanel />
             <EligibilityPanel />
             <ClaimPanel />
             <RewardPanel />

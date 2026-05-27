@@ -1,4 +1,5 @@
 import type { CampaignState } from "@/services/aleoRestClient";
+import type { TaskEligibility } from "@/types/airdropTask";
 import type { PublicDevnetAccount } from "@/types/devnetAccount";
 
 /**
@@ -87,6 +88,16 @@ export type EligibilityRecord = {
    * 标记该记录是否来自真实本地 devnet 执行。
    */
   isDevnetRecord?: boolean;
+
+  /**
+   * 生成该 Eligibility 时已完成的任务 id。
+   */
+  completedTaskIds?: string[];
+
+  /**
+   * 由任务进度计算出的 eligibility tier。
+   */
+  eligibilityTier?: string;
 };
 
 /**
@@ -153,6 +164,16 @@ export type RewardRecord = {
    * 标记该奖励是否来自真实本地 devnet 执行。
    */
   isDevnetRecord?: boolean;
+
+  /**
+   * 生成该 Reward 时对应的已完成任务 id。
+   */
+  completedTaskIds?: string[];
+
+  /**
+   * 该 Reward 对应的 eligibility tier。
+   */
+  eligibilityTier?: string;
 };
 
 /**
@@ -291,6 +312,28 @@ export type AirdropState = {
   isCheckingAccountClaimStatus: boolean;
 
   /**
+   * 当前选中账户在本地 demo 中完成的任务 ids。
+   */
+  completedTaskIds: string[];
+
+  /**
+   * 根据当前账户任务进度计算出的 tier / amount。
+   */
+  taskEligibility: TaskEligibility;
+
+  isLoadingTaskProgress: boolean;
+  taskProgressError: string | null;
+
+  lastCompletedTaskId: string | null;
+  lastCompletedTaskTitle: string | null;
+  lastRewardAnimation: {
+    tier: string;
+    amount: string;
+    taskTitle?: string;
+    isFinal: boolean;
+  } | null;
+
+  /**
    * 当前 claim 状态。
    */
   claimStatus: ClaimStatus;
@@ -298,6 +341,10 @@ export type AirdropState = {
   loadCampaign: (campaignId?: string) => Promise<void>;
   loadDevnetAccounts: () => Promise<void>;
   loadSelectedAccountClaimStatus: (campaignId?: string) => Promise<void>;
+  loadSelectedAccountTaskProgress: () => void;
+  completeSelectedAccountNextTask: () => void;
+  resetSelectedAccountTasks: () => void;
+  clearLastRewardAnimation: () => void;
   selectDevnetAccount: (accountId: string) => void;
   scanEligibility: (address: string, campaignId?: string) => Promise<void>;
   useMockEligibilityFallback: (address: string, campaignId?: string) => void;

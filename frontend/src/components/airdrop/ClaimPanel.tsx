@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { Gift, Loader2 } from "lucide-react";
 
 import { ALEO_CONFIG } from "@/config/aleo";
+import { AIRDROP_TASKS } from "@/constants/airdropTasks";
 import { useAirdropStore } from "@/stores/airdropStore";
+import { ConfirmPartialClaimDialog } from "@/components/airdrop/ConfirmPartialClaimDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +18,8 @@ import {
 import { motion } from "framer-motion";
 
 export function ClaimPanel() {
+  const [showPartialClaimDialog, setShowPartialClaimDialog] = useState(false);
+
   const {
     selectedEligibility,
     campaign,
@@ -34,8 +39,31 @@ export function ClaimPanel() {
     claimSelectedEligibility,
   } = useAirdropStore();
 
+  const selectedTaskCount = selectedEligibility?.completedTaskIds?.length ?? 0;
+  const selectedTier =
+    selectedEligibility?.eligibilityTier ?? selectedEligibility?.tier ?? "-";
+  const selectedAmount = selectedEligibility?.amount ?? "-";
+  const needsPartialClaimConfirmation =
+    accountClaimStatus === "not_claimed" &&
+    Boolean(selectedEligibility) &&
+    selectedTaskCount < AIRDROP_TASKS.length;
+
   const handleClaim = async () => {
     await claimSelectedEligibility();
+  };
+
+  const handleClaimClick = async () => {
+    if (needsPartialClaimConfirmation) {
+      setShowPartialClaimDialog(true);
+      return;
+    }
+
+    await handleClaim();
+  };
+
+  const handleConfirmPartialClaim = async () => {
+    setShowPartialClaimDialog(false);
+    await handleClaim();
   };
 
   const isRealDevnetClaim =
@@ -141,7 +169,40 @@ export function ClaimPanel() {
               </div>
             ) : null}
 
+            {selectedEligibility ? (
+              <div className="mt-4 rounded-xl border border-zinc-800 bg-black/30 p-3">
+                <p className="text-xs text-zinc-500">Selected Eligibility</p>
+                <div className="mt-3 grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-zinc-500">Tasks</p>
+                    <p className="font-mono text-xs text-zinc-200">
+                      {selectedEligibility.completedTaskIds?.length ?? "-"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">Tier</p>
+                    <p className="font-mono text-xs text-emerald-300">
+                      {selectedEligibility.eligibilityTier ??
+                        selectedEligibility.tier}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-zinc-500">Amount</p>
+                    <p className="font-mono text-xs text-emerald-300">
+                      {selectedEligibility.amount}
+                    </p>
+                  </div>
+                </div>
+                {selectedEligibility.completedTaskIds ? (
+                  <p className="mt-3 text-xs text-zinc-400">
+                    Eligibility generated from completed airdrop tasks.
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
             {isRealDevnetClaim &&
+            accountClaimStatus === "not_claimed" &&
             campaign?.totalClaimedUsers &&
             campaign.totalClaimedUsers !== "0u64" ? (
               <p className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs leading-5 text-yellow-200">
@@ -159,7 +220,7 @@ export function ClaimPanel() {
             >
               <Button
                 disabled={claimDisabled}
-                onClick={handleClaim}
+                onClick={handleClaimClick}
                 className="mt-5 w-full bg-emerald-500 text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
               >
                 {isClaiming ? (
@@ -177,7 +238,7 @@ export function ClaimPanel() {
               </Button>
             </motion.div>
 
-            {!selectedEligibility ? (
+            {!selectedEligibility && accountClaimStatus !== "claimed" ? (
               <p className="mt-3 text-center text-xs text-zinc-500">
                 Scan and select an Eligibility record before claiming.
               </p>
@@ -277,6 +338,16 @@ export function ClaimPanel() {
           </div>
         </CardContent>
       </Card>
+
+      <ConfirmPartialClaimDialog
+        open={showPartialClaimDialog}
+        completedCount={selectedTaskCount}
+        totalTasks={AIRDROP_TASKS.length}
+        tier={selectedTier}
+        amount={selectedAmount}
+        onCancel={() => setShowPartialClaimDialog(false)}
+        onConfirm={handleConfirmPartialClaim}
+      />
     </AnimatedPanel>
   );
 }

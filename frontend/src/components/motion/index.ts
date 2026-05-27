@@ -243,3 +243,21 @@ export { ProofStepMotion } from "./ProofStepMotion";
  * - 适合少量文本，不建议用于长段落。
  */
 export { TypingText } from "./TypingText";
+
+/**
+ * QuestRewardBurst
+ *
+ * 用于单个任务完成后的奖励反馈。
+ * 适合显示 +amount 和 tier unlock。
+ * 不处理业务状态，只负责视觉动画。
+ */
+export { QuestRewardBurst } from "./QuestRewardBurst";
+
+/**
+ * QuestCompletionBurst
+ *
+ * 用于所有任务完成后的满级奖励反馈。
+ * 适合显示 Max Tier Achieved / Full Eligibility Unlocked。
+ * 不处理业务状态，只负责视觉动画。
+ */
+export { QuestCompletionBurst } from "./QuestCompletionBurst";
