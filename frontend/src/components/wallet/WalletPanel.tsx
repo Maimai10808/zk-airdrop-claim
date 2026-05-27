@@ -3,6 +3,7 @@
 import { LogOut, Wallet } from "lucide-react";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 import { WalletNotSelectedError } from "@provablehq/aleo-wallet-adaptor-core";
+import { ALEO_CONFIG } from "@/config/aleo";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -22,6 +23,39 @@ export function WalletPanel() {
     disconnect,
   } = walletState as any;
 
+  if (ALEO_CONFIG.isDevnet) {
+    return (
+      <Card className="border-zinc-800 bg-zinc-950 text-white">
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Wallet className="h-5 w-5 text-emerald-400" />
+            Wallet
+          </CardTitle>
+
+          <Badge className="bg-yellow-500/10 text-yellow-300 hover:bg-yellow-500/10">
+            Local Devnet
+          </Badge>
+        </CardHeader>
+
+        <CardContent>
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-4">
+            <p className="text-sm text-zinc-400">
+              Local devnet mode is enabled. Use{" "}
+              <span className="font-mono text-emerald-300">leo execute</span>{" "}
+              for local transactions. The frontend reads mappings from{" "}
+              <span className="font-mono text-emerald-300">localhost:3030</span>.
+            </p>
+
+            <p className="mt-4 text-sm text-zinc-500">Devnet Admin</p>
+            <p className="mt-1 break-all font-mono text-sm text-emerald-300">
+              {ALEO_CONFIG.devnetAdminAddress}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   const handleConnect = async () => {
     try {
       console.log("[wallet] wallets:", wallets);
@@ -37,7 +71,7 @@ export function WalletPanel() {
         selectWallet(firstWallet.adapter.name);
       }
 
-      await connect("testnet3" as any);
+      await connect(ALEO_CONFIG.walletNetwork as any);
     } catch (error) {
       console.error("[wallet] failed to connect:", error);
       alert(

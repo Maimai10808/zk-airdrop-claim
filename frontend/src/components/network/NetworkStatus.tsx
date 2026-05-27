@@ -39,6 +39,9 @@ export function NetworkStatus() {
   }, []);
 
   const isReady = status === "ready";
+  const connectionLabel = ALEO_CONFIG.isDevnet
+    ? "Connected to local devnet"
+    : `Connected to ${ALEO_CONFIG.network}`;
 
   return (
     <Card className="border-zinc-800 bg-zinc-950 text-white">
@@ -65,8 +68,11 @@ export function NetworkStatus() {
           )}
 
           <div className="flex-1">
+            <p className="text-sm font-medium text-zinc-200">
+              Status: {isReady ? "Ready" : status}
+            </p>
             <p className="text-sm text-zinc-400">
-              Connected to {ALEO_CONFIG.network}
+              {connectionLabel}
             </p>
             <p className="mt-1 font-mono text-sm text-emerald-300">
               Latest block height: {latestHeight || "-"}

@@ -6,6 +6,8 @@ import { WalletModalProvider } from "@provablehq/aleo-wallet-adaptor-react-ui";
 import { LeoWalletAdapter } from "@provablehq/aleo-wallet-adaptor-leo";
 import { DecryptPermission } from "@provablehq/aleo-wallet-adaptor-core";
 
+import { ALEO_CONFIG } from "@/config/aleo";
+
 type AleoWalletProviderProps = {
   children: ReactNode;
 };
@@ -18,7 +20,7 @@ export function AleoWalletProvider({ children }: AleoWalletProviderProps) {
   return (
     <BaseAleoWalletProvider
       wallets={wallets}
-      network={"testnet" as any}
+      network={ALEO_CONFIG.walletNetwork as any}
       decryptPermission={DecryptPermission.UponRequest}
       autoConnect={false}
       onError={(error) => console.error("Aleo wallet error:", error)}

@@ -12,6 +12,7 @@ export function CampaignPanel() {
   const {
     campaign,
     campaignId,
+    campaignNotFound,
     isLoadingCampaign,
     campaignError,
     loadCampaign,
@@ -21,6 +22,16 @@ export function CampaignPanel() {
     loadCampaign(campaignId);
   }, [campaignId, loadCampaign]);
 
+  const campaignStatusLabel = isLoadingCampaign
+    ? "Loading"
+    : campaignNotFound
+      ? "Not Found"
+      : campaign?.enabled
+        ? "Enabled"
+        : campaign
+          ? "Disabled"
+          : "Unknown";
+
   return (
     <Card className="border-zinc-800 bg-zinc-950 text-white">
       <CardHeader className="flex flex-row items-center justify-between space-y-0">
@@ -29,12 +40,14 @@ export function CampaignPanel() {
         <div className="flex items-center gap-2">
           <Badge
             className={
-              campaign?.enabled
+              isLoadingCampaign || campaignNotFound || !campaign
+                ? "bg-zinc-800 text-zinc-300"
+                : campaign?.enabled
                 ? "bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/10"
                 : "bg-red-500/10 text-red-300 hover:bg-red-500/10"
             }
           >
-            {campaign?.enabled ? "Enabled" : "Disabled"}
+            {campaignStatusLabel}
           </Badge>
 
           <Button
@@ -56,6 +69,12 @@ export function CampaignPanel() {
 
         {campaignError ? (
           <p className="text-sm text-red-400">{campaignError}</p>
+        ) : null}
+
+        {campaignNotFound ? (
+          <p className="text-sm text-zinc-400">
+            Campaign mapping was not found for this ID.
+          </p>
         ) : null}
 
         <div className="grid gap-4 md:grid-cols-3">

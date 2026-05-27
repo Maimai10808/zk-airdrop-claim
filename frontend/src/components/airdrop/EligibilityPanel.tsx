@@ -3,6 +3,7 @@
 import { LockKeyhole, Loader2, ScanLine, TicketCheck } from "lucide-react";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 
+import { ALEO_CONFIG } from "@/config/aleo";
 import { useAirdropStore } from "@/stores/airdropStore";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -16,19 +17,22 @@ export function EligibilityPanel() {
     campaignId,
     eligibilityRecords,
     selectedEligibility,
+    issueTxId,
+    rawEligibilityRecord,
     isScanning,
     scanError,
     scanEligibility,
+    useMockEligibilityFallback,
     selectEligibility,
   } = useAirdropStore();
 
   const handleScan = async () => {
-    if (!connected || !address) {
+    if (!ALEO_CONFIG.isDevnet && (!connected || !address)) {
       alert("Please connect your Aleo wallet first.");
       return;
     }
 
-    await scanEligibility(address, campaignId);
+    await scanEligibility(address ?? ALEO_CONFIG.devnetAdminAddress, campaignId);
   };
 
   return (
@@ -69,6 +73,12 @@ export function EligibilityPanel() {
                         </Badge>
                       ) : null}
 
+                      {record.isDevnetRecord ? (
+                        <Badge className="bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/10">
+                          REAL DEVNET RECORD
+                        </Badge>
+                      ) : null}
+
                       <Badge className="bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/20">
                         Private Record
                       </Badge>
@@ -87,6 +97,15 @@ export function EligibilityPanel() {
                         {record.owner}
                       </p>
                     </div>
+
+                    {record.txId ?? issueTxId ? (
+                      <div>
+                        <p className="text-zinc-500">Issue transaction ID</p>
+                        <p className="break-all font-mono text-emerald-300">
+                          {record.txId ?? issueTxId}
+                        </p>
+                      </div>
+                    ) : null}
 
                     <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
                       <div className="rounded-xl border border-zinc-800 bg-black/30 p-3">
@@ -117,6 +136,19 @@ export function EligibilityPanel() {
                         </p>
                       </div>
                     </div>
+
+                    {record.rawRecord ? (
+                      <div className="rounded-xl border border-zinc-800 bg-black/40 p-3">
+                        <p className="text-zinc-500">
+                          {rawEligibilityRecord
+                            ? "Raw Eligibility record"
+                            : "Raw issue_eligibility stdout"}
+                        </p>
+                        <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-zinc-200">
+                          {record.rawRecord}
+                        </pre>
+                      </div>
+                    ) : null}
                   </div>
                 </button>
               );
@@ -128,8 +160,8 @@ export function EligibilityPanel() {
 
             <h3 className="mt-4 font-semibold">No record scanned yet</h3>
             <p className="mx-auto mt-2 max-w-sm text-sm leading-6 text-zinc-400">
-              Connect wallet and scan private records to find your Eligibility
-              record. Tier and reward amount will remain private.
+              Current Campaign data is read from the Aleo mapping. Devnet mode
+              issues a real Eligibility record through the local Leo CLI.
             </p>
 
             <Button
@@ -142,11 +174,34 @@ export function EligibilityPanel() {
               ) : (
                 <ScanLine className="mr-2 h-4 w-4" />
               )}
-              {isScanning ? "Scanning Records..." : "Scan Eligibility"}
+              {isScanning
+                ? ALEO_CONFIG.isDevnet
+                  ? "Issuing Eligibility..."
+                  : "Scanning Records..."
+                : ALEO_CONFIG.isDevnet
+                  ? "Issue Real Eligibility"
+                  : "Scan Eligibility"}
             </Button>
 
             {scanError ? (
-              <p className="mt-4 text-sm text-red-400">{scanError}</p>
+              <div className="mt-4 space-y-3">
+                <p className="text-sm text-red-400">{scanError}</p>
+                {ALEO_CONFIG.isDevnet ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() =>
+                      useMockEligibilityFallback(
+                        address ?? ALEO_CONFIG.devnetAdminAddress,
+                        campaignId,
+                      )
+                    }
+                    className="border-zinc-700 bg-transparent text-zinc-200 hover:bg-zinc-800 hover:text-white"
+                  >
+                    Use DEV MOCK fallback
+                  </Button>
+                ) : null}
+              </div>
             ) : null}
           </div>
         )}

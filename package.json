@@ -1,0 +1,35 @@
+{
+  "name": "zk-airdrop-claim",
+  "version": "1.0.0",
+  "description": "",
+  "homepage": "https://github.com/Maimai10808/zk-airdrop-claim#readme",
+  "bugs": {
+    "url": "https://github.com/Maimai10808/zk-airdrop-claim/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://Maimai@github.com/Maimai10808/zk-airdrop-claim.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "commonjs",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "devnet:start": "yes | leo devnet --snarkos ./snarkos --snarkos-features test_network",
+    "devnet:start:install": "yes | leo devnet --snarkos ./snarkos --snarkos-features test_network --install",
+    "devnet:stop": "pkill -f 'snarkos' || true; pkill -f 'leo devnet' || true; lsof -ti tcp:3030 | xargs kill -9 2>/dev/null || true",
+    "devnet:clean": "npm run devnet:stop; rm -rf node-* validator-* client-*",
+    "devnet:reset": "npm run devnet:clean && npm run devnet:start",
+    "devnet:check": "leo query block 1 --network testnet --endpoint http://localhost:3030 --devnet",
+    "leo:build": "cd programs/zk_airdrop_claim && leo build",
+    "leo:test": "cd programs/zk_airdrop_claim && leo test",
+    "leo:deploy:devnet": "cd programs/zk_airdrop_claim && yes | leo deploy --network testnet --endpoint http://localhost:3030 --devnet --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --broadcast",
+    "leo:init-admin": "cd programs/zk_airdrop_claim && yes | leo execute initialize_admin --network testnet --endpoint http://localhost:3030 --devnet --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --broadcast",
+    "leo:create-campaign": "cd programs/zk_airdrop_claim && yes | leo execute create_campaign 1u64 2000u64 --network testnet --endpoint http://localhost:3030 --devnet --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --broadcast",
+    "leo:query-admin": "leo query program zk_airdrop_claim.aleo --mapping-value admin 0u8 --network testnet --endpoint http://localhost:3030 --devnet",
+    "leo:query-campaign": "leo query program zk_airdrop_claim.aleo --mapping-value campaigns 1u64 --network testnet --endpoint http://localhost:3030 --devnet",
+    "frontend:dev": "cd frontend && npm run dev",
+    "frontend:build": "cd frontend && npm run build"
+  }
+}

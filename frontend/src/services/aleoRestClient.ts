@@ -7,13 +7,37 @@ export type CampaignState = {
   totalClaimedAmount: string;
 };
 
+/**
+ * 拼接 Aleo REST API 地址。
+ *
+ * 本地 devnet:
+ *   http://localhost:3030/testnet/...
+ *
+ * Provable public API:
+ *   https://api.provable.com/v2/testnet/...
+ */
+export function buildAleoUrl(path: string) {
+  const baseUrl = ALEO_CONFIG.apiBaseUrl.replace(/\/$/, "");
+  const network = ALEO_CONFIG.network.replace(/^\//, "").replace(/\/$/, "");
+  const cleanPath = path.replace(/^\//, "");
+
+  return `${baseUrl}/${network}/${cleanPath}`;
+}
+
+/**
+ * 获取最新区块高度。
+ *
+ * Leo devnet does not support /block/height/latest, so the UI shows a stable
+ * local devnet marker while mapping reads continue to use the real endpoint.
+ */
 export async function getLatestBlockHeight() {
-  const response = await fetch(
-    `${ALEO_CONFIG.apiBaseUrl}/${ALEO_CONFIG.network}/block/height/latest`,
-    {
-      cache: "no-store",
-    },
-  );
+  if (ALEO_CONFIG.isDevnet) {
+    return "local-devnet";
+  }
+
+  const response = await fetch(buildAleoUrl("/block/height/latest"), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     throw new Error("Failed to fetch latest Aleo block height");
@@ -22,13 +46,19 @@ export async function getLatestBlockHeight() {
   return response.text();
 }
 
+/**
+ * 读取 program mapping。
+ *
+ * 示例：
+ * http://localhost:3030/testnet/program/zk_airdrop_claim.aleo/mapping/campaigns/1u64
+ */
 export async function getProgramMappingValue(
   programId: string,
   mappingName: string,
   key: string,
 ) {
   const response = await fetch(
-    `${ALEO_CONFIG.apiBaseUrl}/${ALEO_CONFIG.network}/program/${programId}/mapping/${mappingName}/${key}`,
+    buildAleoUrl(`/program/${programId}/mapping/${mappingName}/${key}`),
     {
       cache: "no-store",
     },
@@ -42,12 +72,9 @@ export async function getProgramMappingValue(
 }
 
 export async function getTransaction(txId: string) {
-  const response = await fetch(
-    `${ALEO_CONFIG.apiBaseUrl}/${ALEO_CONFIG.network}/transaction/${txId}`,
-    {
-      cache: "no-store",
-    },
-  );
+  const response = await fetch(buildAleoUrl(`/transaction/${txId}`), {
+    cache: "no-store",
+  });
 
   if (!response.ok) {
     return null;
@@ -104,7 +131,7 @@ export async function getClaimedStatus(claimKey: string) {
 }
 
 export function parseCampaign(raw: string): CampaignState {
-  const enabled = raw.includes("enabled: true");
+  const enabled = /enabled:\s*true/.test(raw);
 
   const deadline =
     raw.match(/deadline:\s*([0-9]+u64)/)?.[1] ??
@@ -114,11 +141,13 @@ export function parseCampaign(raw: string): CampaignState {
   const totalClaimedUsers =
     raw.match(/total_claimed_users:\s*([0-9]+u64)/)?.[1] ??
     raw.match(/totalClaimedUsers:\s*([0-9]+u64)/)?.[1] ??
+    raw.match(/total_claimed_users:\s*([0-9]+)/)?.[1] ??
     "0u64";
 
   const totalClaimedAmount =
     raw.match(/total_claimed_amount:\s*([0-9]+u64)/)?.[1] ??
     raw.match(/totalClaimedAmount:\s*([0-9]+u64)/)?.[1] ??
+    raw.match(/total_claimed_amount:\s*([0-9]+)/)?.[1] ??
     "0u64";
 
   return {
