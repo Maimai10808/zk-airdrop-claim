@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getDevnetAccountById } from "@/config/devnetAccounts";
 import {
   executeLeoFunction,
   isLeoCliError,
@@ -8,6 +9,7 @@ import {
 export const runtime = "nodejs";
 
 type IssueEligibilityBody = {
+  accountId?: string;
   receiver?: string;
   campaignId?: string;
   tier?: string;
@@ -61,7 +63,7 @@ function extractEligibilityRecord(stdout: string) {
 
 function validateBody(body: IssueEligibilityBody) {
   const requiredFields: Array<keyof IssueEligibilityBody> = [
-    "receiver",
+    "accountId",
     "campaignId",
     "tier",
     "amount",
@@ -84,8 +86,10 @@ export async function POST(request: NextRequest) {
 
     validateBody(body);
 
+    const account = getDevnetAccountById(body.accountId!);
+
     const result = await executeLeoFunction("issue_eligibility", [
-      body.receiver!,
+      account.address,
       body.campaignId!,
       body.tier!,
       body.amount!,
@@ -97,6 +101,11 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       ok: true,
+      account: {
+        id: account.id,
+        label: account.label,
+        address: account.address,
+      },
       txId: result.txId,
       eligibilityRecord: extractEligibilityRecord(result.stdout),
       stdout: result.stdout,

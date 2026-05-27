@@ -5,6 +5,7 @@ import { ClaimPanel } from "@/components/airdrop/ClaimPanel";
 import { EligibilityPanel } from "@/components/airdrop/EligibilityPanel";
 import { RewardPanel } from "@/components/airdrop/RewardPanel";
 import { NetworkStatus } from "@/components/network/NetworkStatus";
+import { DevnetAccountSwitcher } from "@/components/wallet/DevnetAccountSwitcher";
 import { WalletPanel } from "@/components/wallet/WalletPanel";
 import { ZkCircuitBackground } from "@/components/motion";
 
@@ -25,6 +26,7 @@ export default function HomePage() {
 
           <div className="flex flex-col gap-6">
             <WalletPanel />
+            <DevnetAccountSwitcher />
             <NetworkStatus />
             <CampaignPanel />
           </div>

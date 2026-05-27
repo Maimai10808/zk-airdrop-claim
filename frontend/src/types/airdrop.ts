@@ -1,4 +1,5 @@
 import type { CampaignState } from "@/services/aleoRestClient";
+import type { PublicDevnetAccount } from "@/types/devnetAccount";
 
 /**
  * EligibilityRecord 表示前端中展示和选择的资格记录。
@@ -18,10 +19,19 @@ export type EligibilityRecord = {
   /**
    * Eligibility record 的 owner。
    *
-   * 在本地 devnet 模式下，这里通常是 devnet admin 地址，
-   * 因为服务端使用固定 devnet 私钥执行 Leo CLI。
+   * 在本地 devnet 多账户模式下，这里是当前选中账户地址。
    */
   owner: string;
+
+  /**
+   * 本地 devnet 账户 id，仅用于本地演示 UI。
+   */
+  accountId?: string;
+
+  /**
+   * 本地 devnet 账户标签，仅用于本地演示 UI。
+   */
+  accountLabel?: string;
 
   /**
    * 所属 campaign id，例如 `1u64`。
@@ -96,6 +106,16 @@ export type RewardRecord = {
    * Reward record 的 owner。
    */
   owner: string;
+
+  /**
+   * 本地 devnet 账户 id，仅用于本地演示 UI。
+   */
+  accountId?: string;
+
+  /**
+   * 本地 devnet 账户标签，仅用于本地演示 UI。
+   */
+  accountLabel?: string;
 
   /**
    * 所属 campaign id，例如 `1u64`。
@@ -231,11 +251,28 @@ export type AirdropState = {
   rawRewardRecord: string | null;
 
   /**
+   * 浏览器可见的本地 devnet 账户列表。
+   *
+   * 这里只允许保存 id / label / address，不允许保存 privateKey。
+   */
+  devnetAccounts: PublicDevnetAccount[];
+
+  /**
+   * 当前选中的本地 devnet 账户。
+   */
+  selectedDevnetAccount: PublicDevnetAccount | null;
+
+  isLoadingDevnetAccounts: boolean;
+  devnetAccountError: string | null;
+
+  /**
    * 当前 claim 状态。
    */
   claimStatus: ClaimStatus;
 
   loadCampaign: (campaignId?: string) => Promise<void>;
+  loadDevnetAccounts: () => Promise<void>;
+  selectDevnetAccount: (accountId: string) => void;
   scanEligibility: (address: string, campaignId?: string) => Promise<void>;
   useMockEligibilityFallback: (address: string, campaignId?: string) => void;
   selectEligibility: (recordId: string) => void;

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { execFile } from "node:child_process";
 
 export type LeoCommandResult = {
@@ -99,10 +101,13 @@ export function runLeoCommand(args: string[]): Promise<LeoCommandResult> {
 export async function executeLeoFunction(
   functionName: string,
   inputs: string[],
+  options?: {
+    privateKey?: string;
+  },
 ): Promise<LeoExecutionResult> {
   const network = process.env.ALEO_DEVNET_NETWORK ?? "testnet";
   const endpoint = process.env.ALEO_DEVNET_ENDPOINT ?? "http://localhost:3030";
-  const privateKey = getRequiredEnv("ALEO_DEVNET_PRIVATE_KEY");
+  const privateKey = options?.privateKey ?? getRequiredEnv("ALEO_DEVNET_PRIVATE_KEY");
 
   const result = await runLeoCommand([
     "execute",

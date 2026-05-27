@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
+import { getDevnetAccountById } from "@/config/devnetAccounts";
 import {
   executeLeoFunction,
   isLeoCliError,
@@ -8,6 +9,7 @@ import {
 export const runtime = "nodejs";
 
 type ClaimAirdropBody = {
+  accountId?: string;
   eligibilityRecord?: string;
   currentTime?: string;
 };
@@ -63,6 +65,10 @@ export async function POST(request: NextRequest) {
   try {
     const body = (await request.json()) as ClaimAirdropBody;
 
+    if (!body.accountId) {
+      throw new Error("Missing required field: accountId");
+    }
+
     if (!body.eligibilityRecord) {
       throw new Error(
         "Eligibility record parsing failed. Please inspect issue_eligibility stdout.",
@@ -73,16 +79,26 @@ export async function POST(request: NextRequest) {
       throw new Error("Missing required field: currentTime");
     }
 
-    const result = await executeLeoFunction("claim_airdrop", [
-      body.eligibilityRecord,
-      body.currentTime,
-    ]);
+    const account = getDevnetAccountById(body.accountId);
+
+    const result = await executeLeoFunction(
+      "claim_airdrop",
+      [body.eligibilityRecord, body.currentTime],
+      {
+        privateKey: account.privateKey,
+      },
+    );
 
     stdout = result.stdout;
     stderr = result.stderr;
 
     return NextResponse.json({
       ok: true,
+      account: {
+        id: account.id,
+        label: account.label,
+        address: account.address,
+      },
       txId: result.txId,
       rewardRecord: extractRewardRecord(result.stdout),
       stdout: result.stdout,
@@ -96,11 +112,14 @@ export async function POST(request: NextRequest) {
 
     const combinedOutput = `${stdout}\n${stderr}`;
     const isRejected = /Transaction rejected/i.test(combinedOutput);
-    const message = isRejected
-      ? "claim_airdrop was rejected on-chain. The local devnet admin has likely already claimed campaign 1u64; reset devnet or create a new campaign id to run another successful claim."
-      : error instanceof Error
-        ? error.message
-        : "Failed to claim airdrop";
+    const isBalanceError = /insufficient|balance|fee/i.test(combinedOutput);
+    const message = isBalanceError
+      ? "The selected devnet account does not have enough public credits to pay the claim fee."
+      : isRejected
+        ? "This account has already claimed this campaign."
+        : error instanceof Error
+          ? error.message
+          : "Failed to claim airdrop";
 
     return NextResponse.json(
       {

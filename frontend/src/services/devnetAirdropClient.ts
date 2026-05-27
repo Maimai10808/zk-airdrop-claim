@@ -1,5 +1,7 @@
+import type { PublicDevnetAccount } from "@/types/devnetAccount";
+
 export type DevnetIssueEligibilityParams = {
-  receiver: string;
+  accountId: string;
   campaignId: string;
   tier: string;
   amount: string;
@@ -7,12 +9,14 @@ export type DevnetIssueEligibilityParams = {
 };
 
 export type DevnetClaimAirdropParams = {
+  accountId: string;
   eligibilityRecord: string;
   currentTime: string;
 };
 
 export type DevnetIssueEligibilityResponse = {
   ok: boolean;
+  account?: PublicDevnetAccount;
   txId?: string | null;
   eligibilityRecord?: string | null;
   stdout?: string;
@@ -22,6 +26,7 @@ export type DevnetIssueEligibilityResponse = {
 
 export type DevnetClaimAirdropResponse = {
   ok: boolean;
+  account?: PublicDevnetAccount;
   txId?: string | null;
   rewardRecord?: string | null;
   stdout?: string;

@@ -27,6 +27,7 @@ export function EligibilityPanel() {
     selectedEligibility,
     issueTxId,
     rawEligibilityRecord,
+    selectedDevnetAccount,
     isScanning,
     scanError,
     scanEligibility,
@@ -40,11 +41,10 @@ export function EligibilityPanel() {
       return;
     }
 
-    await scanEligibility(
-      address ?? ALEO_CONFIG.devnetAdminAddress,
-      campaignId,
-    );
+    await scanEligibility(address ?? selectedDevnetAccount?.address ?? "", campaignId);
   };
+
+  const needsDevnetAccount = ALEO_CONFIG.isDevnet && !selectedDevnetAccount;
 
   return (
     <AnimatedPanel>
@@ -104,6 +104,17 @@ export function EligibilityPanel() {
                             <p className="font-mono text-zinc-200">
                               {record.id}
                             </p>
+                          </div>
+
+                          <div>
+                            {record.accountLabel ? (
+                              <>
+                                <p className="text-zinc-500">Account</p>
+                                <p className="font-medium text-zinc-200">
+                                  {record.accountLabel}
+                                </p>
+                              </>
+                            ) : null}
                           </div>
 
                           <div>
@@ -183,14 +194,30 @@ export function EligibilityPanel() {
                 issues a real Eligibility record through the local Leo CLI.
               </p>
 
+              {ALEO_CONFIG.isDevnet ? (
+                <div className="mx-auto mt-4 max-w-sm rounded-xl border border-zinc-800 bg-black/30 p-3 text-left">
+                  <p className="text-xs text-zinc-500">Account</p>
+                  <p className="mt-1 text-sm font-medium text-zinc-200">
+                    {selectedDevnetAccount?.label ?? "No account selected"}
+                  </p>
+                  <p className="mt-1 break-all font-mono text-xs text-emerald-300">
+                    {selectedDevnetAccount?.address ?? "-"}
+                  </p>
+                </div>
+              ) : null}
+
               <motion.div
-                whileHover={!isScanning ? { y: -2 } : undefined}
-                whileTap={!isScanning ? { scale: 0.98 } : undefined}
+                whileHover={
+                  !isScanning && !needsDevnetAccount ? { y: -2 } : undefined
+                }
+                whileTap={
+                  !isScanning && !needsDevnetAccount ? { scale: 0.98 } : undefined
+                }
                 transition={{ type: "spring", stiffness: 420, damping: 26 }}
               >
                 <Button
                   onClick={handleScan}
-                  disabled={isScanning}
+                  disabled={isScanning || needsDevnetAccount}
                   className="mt-5 bg-emerald-500 text-black hover:bg-emerald-400"
                 >
                   {isScanning ? (
@@ -207,6 +234,12 @@ export function EligibilityPanel() {
                       : "Scan Eligibility"}
                 </Button>
               </motion.div>
+
+              {needsDevnetAccount ? (
+                <p className="mt-3 text-center text-xs text-zinc-500">
+                  Select a devnet account first.
+                </p>
+              ) : null}
 
               {scanError ? (
                 <div className="mt-4 space-y-3">
@@ -226,7 +259,9 @@ export function EligibilityPanel() {
                         variant="outline"
                         onClick={() =>
                           useMockEligibilityFallback(
-                            address ?? ALEO_CONFIG.devnetAdminAddress,
+                            address ??
+                              selectedDevnetAccount?.address ??
+                              ALEO_CONFIG.devnetAdminAddress,
                             campaignId,
                           )
                         }

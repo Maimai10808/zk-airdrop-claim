@@ -21,6 +21,7 @@ export function ClaimPanel() {
     executionMode,
     rawEligibilityRecord,
     rawRewardRecord,
+    selectedDevnetAccount,
     isClaiming,
     claimStatus,
     claimError,
@@ -39,6 +40,16 @@ export function ClaimPanel() {
     executionMode === "devnet" &&
     selectedEligibility?.isDevnetRecord;
   const missingParsedRecord = isRealDevnetClaim && !rawEligibilityRecord;
+  const missingDevnetAccount = ALEO_CONFIG.isDevnet && !selectedDevnetAccount;
+  const selectedAccountMismatch =
+    Boolean(isRealDevnetClaim && selectedDevnetAccount && selectedEligibility) &&
+    selectedEligibility?.owner !== selectedDevnetAccount?.address;
+  const claimDisabled =
+    isClaiming ||
+    !selectedEligibility ||
+    missingParsedRecord ||
+    missingDevnetAccount ||
+    selectedAccountMismatch;
 
   return (
     <AnimatedPanel>
@@ -76,34 +87,36 @@ export function ClaimPanel() {
                 : "The Campaign panel reads real Aleo mapping state. This claim action only simulates consuming one Eligibility record and creates a local mock Reward record."}
             </p>
 
+            {ALEO_CONFIG.isDevnet ? (
+              <div className="mt-4 rounded-xl border border-zinc-800 bg-black/30 p-3">
+                <p className="text-xs text-zinc-500">Selected Account</p>
+                <p className="mt-1 text-sm font-medium text-zinc-200">
+                  {selectedDevnetAccount?.label ?? "No account selected"}
+                </p>
+                <p className="mt-1 break-all font-mono text-xs text-emerald-300">
+                  {selectedDevnetAccount?.address ?? "-"}
+                </p>
+              </div>
+            ) : null}
+
             {isRealDevnetClaim &&
             campaign?.totalClaimedUsers &&
             campaign.totalClaimedUsers !== "0u64" ? (
               <p className="mt-3 rounded-xl border border-yellow-500/20 bg-yellow-500/10 p-3 text-xs leading-5 text-yellow-200">
                 This campaign already has claimed users. The local devnet demo
-                uses one admin address, so claiming campaign 1u64 again can be
-                rejected by the contract double-claim guard.
+                now uses multiple local accounts, so a repeat claim should only
+                fail for the same selected account.
               </p>
             ) : null}
 
             <motion.div
               className="w-full"
-              whileHover={
-                isClaiming || !selectedEligibility || missingParsedRecord
-                  ? undefined
-                  : { y: -2 }
-              }
-              whileTap={
-                isClaiming || !selectedEligibility || missingParsedRecord
-                  ? undefined
-                  : { scale: 0.98 }
-              }
+              whileHover={claimDisabled ? undefined : { y: -2 }}
+              whileTap={claimDisabled ? undefined : { scale: 0.98 }}
               transition={{ type: "spring", stiffness: 420, damping: 26 }}
             >
               <Button
-                disabled={
-                  isClaiming || !selectedEligibility || missingParsedRecord
-                }
+                disabled={claimDisabled}
                 onClick={handleClaim}
                 className="mt-5 w-full bg-emerald-500 text-black hover:bg-emerald-400 disabled:cursor-not-allowed disabled:bg-zinc-700 disabled:text-zinc-400"
               >
@@ -135,6 +148,19 @@ export function ClaimPanel() {
               </p>
             ) : null}
 
+            {missingDevnetAccount ? (
+              <p className="mt-3 text-center text-xs text-zinc-500">
+                Select a devnet account first.
+              </p>
+            ) : null}
+
+            {selectedAccountMismatch ? (
+              <p className="mt-3 text-center text-xs text-red-400">
+                This Eligibility record belongs to another selected account.
+                Switch back or issue a new record.
+              </p>
+            ) : null}
+
             {(claimTxId ?? lastTxId) ? (
               <TransactionReveal className="mt-4">
                 <p className="text-xs text-zinc-500">
@@ -158,6 +184,11 @@ export function ClaimPanel() {
 
             {rawRewardRecord ? (
               <TransactionReveal className="mt-4">
+                {selectedDevnetAccount ? (
+                  <p className="mb-2 text-xs text-zinc-500">
+                    Account: {selectedDevnetAccount.label}
+                  </p>
+                ) : null}
                 <p className="text-xs text-zinc-500">Raw Reward record</p>
                 <pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-5 text-zinc-200">
                   {rawRewardRecord}

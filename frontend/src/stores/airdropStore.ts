@@ -19,6 +19,7 @@ import {
   createLocalRecordId,
 } from "@/constants/airdrop";
 import { getCampaign } from "@/services/aleoRestClient";
+import { getDevnetAccounts } from "@/services/devnetAccountClient";
 import {
   claimAirdropDevnet,
   issueEligibilityDevnet,
@@ -70,6 +71,8 @@ function createMockEligibilityRecord(
  */
 function createDevnetEligibilityRecord(params: {
   owner: string;
+  accountId?: string;
+  accountLabel?: string;
   txId: string | null;
   rawRecord: string;
   campaignId: string;
@@ -77,6 +80,8 @@ function createDevnetEligibilityRecord(params: {
   return {
     id: createLocalRecordId(ELIGIBILITY_RECORD_ID_PREFIX),
     owner: params.owner,
+    accountId: params.accountId,
+    accountLabel: params.accountLabel,
     campaignId: params.campaignId,
     tier: DEFAULT_ELIGIBILITY_TIER,
     amount: DEFAULT_ELIGIBILITY_AMOUNT,
@@ -94,6 +99,8 @@ function createDevnetEligibilityRecord(params: {
  */
 function createDevnetRewardRecord(params: {
   owner: string;
+  accountId?: string;
+  accountLabel?: string;
   campaignId: string;
   amount: string;
   txId: string | null;
@@ -102,6 +109,8 @@ function createDevnetRewardRecord(params: {
   return {
     id: createLocalRecordId(REWARD_RECORD_ID_PREFIX),
     owner: params.owner,
+    accountId: params.accountId,
+    accountLabel: params.accountLabel,
     campaignId: params.campaignId,
     amount: params.amount,
     status: "unspent",
@@ -118,6 +127,8 @@ function createDevnetRewardRecord(params: {
  */
 function createMockRewardRecord(params: {
   owner: string;
+  accountId?: string;
+  accountLabel?: string;
   campaignId: string;
   amount: string;
   txId: string;
@@ -125,6 +136,8 @@ function createMockRewardRecord(params: {
   return {
     id: createLocalRecordId(REWARD_RECORD_ID_PREFIX),
     owner: params.owner,
+    accountId: params.accountId,
+    accountLabel: params.accountLabel,
     campaignId: params.campaignId,
     amount: params.amount,
     status: "unspent",
@@ -181,6 +194,10 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
   claimTxId: null,
   rawEligibilityRecord: null,
   rawRewardRecord: null,
+  devnetAccounts: [],
+  selectedDevnetAccount: null,
+  isLoadingDevnetAccounts: false,
+  devnetAccountError: null,
   claimStatus: "idle",
 
   /**
@@ -216,6 +233,64 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
     }
   },
 
+  loadDevnetAccounts: async () => {
+    try {
+      set({
+        isLoadingDevnetAccounts: true,
+        devnetAccountError: null,
+      });
+
+      const accounts = await getDevnetAccounts();
+      const current = get().selectedDevnetAccount;
+      const selected =
+        accounts.find((account) => account.id === current?.id) ??
+        accounts[0] ??
+        null;
+
+      set({
+        devnetAccounts: accounts,
+        selectedDevnetAccount: selected,
+        isLoadingDevnetAccounts: false,
+        devnetAccountError:
+          accounts.length > 0 ? null : "No local devnet accounts configured.",
+      });
+    } catch (error) {
+      set({
+        isLoadingDevnetAccounts: false,
+        devnetAccountError:
+          error instanceof Error
+            ? error.message
+            : "Failed to load devnet accounts",
+      });
+    }
+  },
+
+  selectDevnetAccount: (accountId: string) => {
+    const account = get().devnetAccounts.find((item) => item.id === accountId);
+
+    if (!account) {
+      set({
+        devnetAccountError: `Unknown devnet account: ${accountId}`,
+      });
+      return;
+    }
+
+    set({
+      selectedDevnetAccount: account,
+      devnetAccountError: null,
+      eligibilityRecords: [],
+      selectedEligibility: null,
+      rawEligibilityRecord: null,
+      rawRewardRecord: null,
+      issueTxId: null,
+      claimTxId: null,
+      scanError: null,
+      claimError: null,
+      claimErrorDetails: null,
+      claimStatus: "idle",
+    });
+  },
+
   /**
    * 扫描或签发 Eligibility record。
    *
@@ -239,25 +314,25 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         eligibilityRecords: [],
         selectedEligibility: null,
         issueTxId: null,
+        claimTxId: null,
         rawEligibilityRecord: null,
+        rawRewardRecord: null,
+        claimStatus: "idle",
+        claimError: null,
+        claimErrorDetails: null,
       });
 
       console.log("[airdrop] scan start", { address, campaignId });
 
       if (ALEO_CONFIG.isDevnet) {
-        /**
-         * 本地 devnet 模式下，receiver 使用固定的 devnet admin 地址。
-         *
-         * 原因：
-         * - 服务端 Leo CLI 使用固定 devnet 私钥；
-         * - claim_airdrop 执行时 self.signer 也是这个地址；
-         * - 合约要求 self.signer === eligibility.owner。
-         *
-         * 后续接入真实 Leo Wallet / 公共 testnet 时，
-         * 这里可以替换成用户连接的钱包地址。
-         */
+        const selectedDevnetAccount = get().selectedDevnetAccount;
+
+        if (!selectedDevnetAccount) {
+          throw new Error("Select a devnet account first.");
+        }
+
         const result = await issueEligibilityDevnet({
-          receiver: ALEO_CONFIG.devnetAdminAddress,
+          accountId: selectedDevnetAccount.id,
           campaignId,
           tier: DEFAULT_ELIGIBILITY_TIER,
           amount: DEFAULT_ELIGIBILITY_AMOUNT,
@@ -277,7 +352,9 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         }
 
         const record = createDevnetEligibilityRecord({
-          owner: ALEO_CONFIG.devnetAdminAddress,
+          owner: selectedDevnetAccount.address,
+          accountId: selectedDevnetAccount.id,
+          accountLabel: selectedDevnetAccount.label,
           txId: result.txId ?? null,
           rawRecord,
           campaignId,
@@ -339,7 +416,9 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
       eligibilityRecords: [record],
       selectedEligibility: record,
       rawEligibilityRecord: null,
+      rawRewardRecord: null,
       issueTxId: null,
+      claimTxId: null,
     });
   },
 
@@ -393,13 +472,27 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
       });
 
       if (ALEO_CONFIG.isDevnet && !selectedEligibility.isDevMock) {
-        const rawEligibilityRecord = get().rawEligibilityRecord;
+        const selectedDevnetAccount = get().selectedDevnetAccount;
+
+        if (!selectedDevnetAccount) {
+          throw new Error("Select a devnet account first.");
+        }
+
+        if (selectedEligibility.owner !== selectedDevnetAccount.address) {
+          throw new Error(
+            "This Eligibility record belongs to another selected account. Switch back or issue a new record.",
+          );
+        }
+
+        const rawEligibilityRecord =
+          selectedEligibility.rawRecord ?? get().rawEligibilityRecord;
 
         if (!rawEligibilityRecord) {
           throw new Error(AIRDROP_MESSAGES.eligibilityRecordParsingFailed);
         }
 
         const result = await claimAirdropDevnet({
+          accountId: selectedDevnetAccount.id,
           eligibilityRecord: rawEligibilityRecord,
           currentTime: DEFAULT_CLAIM_CURRENT_TIME,
         });
@@ -415,7 +508,9 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
         }
 
         const reward = createDevnetRewardRecord({
-          owner: selectedEligibility.owner,
+          owner: selectedDevnetAccount.address,
+          accountId: selectedDevnetAccount.id,
+          accountLabel: selectedDevnetAccount.label,
           campaignId: selectedEligibility.campaignId,
           amount: selectedEligibility.amount,
           txId: result.txId ?? null,
@@ -480,6 +575,8 @@ export const useAirdropStore = create<AirdropState>((set, get) => ({
 
       const reward = createMockRewardRecord({
         owner: selectedEligibility.owner,
+        accountId: selectedEligibility.accountId,
+        accountLabel: selectedEligibility.accountLabel,
         campaignId: selectedEligibility.campaignId,
         amount: selectedEligibility.amount,
         txId: mockTxId,

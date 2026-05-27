@@ -22,6 +22,7 @@
     "devnet:clean": "npm run devnet:stop; rm -rf node-* validator-* client-*",
     "devnet:reset": "npm run devnet:clean && npm run devnet:start",
     "devnet:check": "leo query block 1 --network testnet --endpoint http://localhost:3030 --devnet",
+    "devnet:fund-users": "bash scripts/fund_devnet_users.sh",
     "leo:build": "cd programs/zk_airdrop_claim && leo build",
     "leo:test": "cd programs/zk_airdrop_claim && leo test",
     "leo:deploy:devnet": "cd programs/zk_airdrop_claim && leo deploy --network testnet --endpoint http://localhost:3030 --devnet --private-key APrivateKey1zkp8CZNn3yeCseEtxuVPbDCwSyhGW6yZKUYKfgXmcpoGPWH --broadcast --yes",

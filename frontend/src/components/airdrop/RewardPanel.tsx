@@ -11,6 +11,14 @@ import {
   StatusPulse,
 } from "@/components/motion";
 
+function shortAddress(address: string) {
+  if (address.length <= 16) {
+    return address;
+  }
+
+  return `${address.slice(0, 9)}...${address.slice(-5)}`;
+}
+
 export function RewardPanel() {
   const { rewards } = useAirdropStore();
 
@@ -31,7 +39,7 @@ export function RewardPanel() {
               {rewards.map((reward) => (
                 <StaggerItem key={reward.id}>
                   <RecordCardMotion className="p-5">
-                    <div className="grid gap-4 md:grid-cols-[2fr_1fr_0.9fr_0.9fr] items-center">
+                    <div className="grid items-center gap-4 md:grid-cols-[1.5fr_1fr_0.9fr_0.8fr_1.2fr]">
                       <div>
                         <div className="font-mono text-sm text-zinc-200">
                           {reward.id}
@@ -47,6 +55,13 @@ export function RewardPanel() {
                               REAL DEVNET reward
                             </Badge>
                           ) : null}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="text-xs text-zinc-500">Account</div>
+                        <div className="mt-1 text-sm font-medium text-zinc-200">
+                          {reward.accountLabel ?? shortAddress(reward.owner)}
                         </div>
                       </div>
 
