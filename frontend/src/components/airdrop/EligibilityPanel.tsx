@@ -1,10 +1,13 @@
 "use client";
 
+import { useState } from "react";
 import { LockKeyhole, Loader2, ScanLine, TicketCheck } from "lucide-react";
 import { useWallet } from "@provablehq/aleo-wallet-adaptor-react";
 
 import { ALEO_CONFIG } from "@/config/aleo";
+import { AIRDROP_TASKS } from "@/constants/airdropTasks";
 import { useAirdropStore } from "@/stores/airdropStore";
+import { ConfirmEligibilityIssueDialog } from "@/components/airdrop/ConfirmEligibilityIssueDialog";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,6 +21,7 @@ import {
 import { motion } from "framer-motion";
 
 export function EligibilityPanel() {
+  const [showIssueDialog, setShowIssueDialog] = useState(false);
   const walletState = useWallet();
   const { address, connected } = walletState as any;
 
@@ -38,13 +42,26 @@ export function EligibilityPanel() {
     selectEligibility,
   } = useAirdropStore();
 
-  const handleScan = async () => {
+  const executeIssueEligibility = async () => {
     if (!ALEO_CONFIG.isDevnet && (!connected || !address)) {
       alert("Please connect your Aleo wallet first.");
       return;
     }
 
     await scanEligibility(address ?? selectedDevnetAccount?.address ?? "", campaignId);
+  };
+
+  const handleIssueClick = () => {
+    if (issueDisabled) {
+      return;
+    }
+
+    setShowIssueDialog(true);
+  };
+
+  const handleConfirmIssue = async () => {
+    setShowIssueDialog(false);
+    await executeIssueEligibility();
   };
 
   const needsDevnetAccount = ALEO_CONFIG.isDevnet && !selectedDevnetAccount;
@@ -255,7 +272,7 @@ export function EligibilityPanel() {
                 transition={{ type: "spring", stiffness: 420, damping: 26 }}
               >
                 <Button
-                  onClick={handleScan}
+                  onClick={handleIssueClick}
                   disabled={issueDisabled}
                   className="mt-5 bg-emerald-500 text-black hover:bg-emerald-400"
                 >
@@ -346,6 +363,17 @@ export function EligibilityPanel() {
           )}
         </CardContent>
       </Card>
+
+      <ConfirmEligibilityIssueDialog
+        open={showIssueDialog}
+        completedCount={taskEligibility.completedCount}
+        totalTasks={AIRDROP_TASKS.length}
+        tier={taskEligibility.tier}
+        amount={taskEligibility.amount}
+        isMaxTier={taskEligibility.completedCount === AIRDROP_TASKS.length}
+        onCancel={() => setShowIssueDialog(false)}
+        onConfirm={handleConfirmIssue}
+      />
     </AnimatedPanel>
   );
 }
