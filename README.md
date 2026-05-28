@@ -6,6 +6,8 @@
 
 这个项目演示了一套完整的本地 devnet 零知识空投流程：
 
+- 通过任务进度生成不同等级的领取资格；
+- 在签发资格前预确认用户当前 tier 和 claimable amount；
 - 签发私有 `Eligibility` 资格记录；
 - 领取私有 `Reward` 奖励记录；
 - 通过公开 mapping 防止重复领取；
@@ -21,10 +23,12 @@
 在传统空投中，领取名单、用户等级和奖励金额通常是公开的，或者很容易被推断出来。本项目探索了一种更隐私的设计：
 
 1. 管理员创建一个公开 campaign。
-2. 管理员给用户签发一个私有 `Eligibility` record。
-3. 用户消耗这个 `Eligibility` record，领取一个私有 `Reward` record。
-4. 合约只公开记录 campaign 统计数据和用户是否已领取。
-5. 用户等级和奖励金额保留在 Aleo 私有 records 中。
+2. 用户在前端完成空投任务，形成当前任务进度、tier 和 claimable amount。
+3. 用户点击资格验证前，前端先弹窗预确认当前领取等级和可领取金额，避免用户在未完成全部任务时误领。
+4. 管理员根据当前任务进度给用户签发一个私有 `Eligibility` record。
+5. 用户消耗这个 `Eligibility` record，领取一个私有 `Reward` record。
+6. 合约只公开记录 campaign 统计数据和用户是否已领取。
+7. 用户等级和奖励金额保留在 Aleo 私有 records 中。
 
 本地 Demo 还支持多个 devnet 账户切换，方便验证：
 
@@ -36,25 +40,34 @@
 
 ## 核心功能
 
-- **私有 Eligibility Record**  
+- **空投任务与等级资格**
+  用户按顺序完成空投任务，不同任务进度会对应不同的 tier 和 claimable amount。资格签发前会先确认当前奖励等级，避免用户误以较低等级领取。
+
+- **资格验证前置确认**
+  原本的“未完成全部任务提醒”逻辑已经前移到资格验证阶段。用户在签发 `Eligibility` 前会先看到当前完成任务数、当前 tier 和可领取金额；确认后才会真正调用本地 devnet API 签发资格记录。
+
+- **私有 Eligibility Record**
   用户收到一个包含 campaign id、tier、amount 和 deadline 的私有资格记录。
 
-- **私有 Reward Record**  
+- **私有 Reward Record**
   领取成功后生成一个私有奖励记录。
 
-- **重复领取保护**  
+- **重复领取保护**
   合约使用公开的 `claimed` mapping，防止同一个账户对同一个 campaign 重复领取。
 
-- **公开 Campaign 统计**  
+- **公开 Campaign 统计**
   前端读取真实 Aleo mapping 数据，包括 campaign 状态、deadline、已领取用户数和已领取总金额。
 
-- **本地 Devnet 集成**  
+- **本地 Devnet 集成**
   应用通过 Next.js API Routes 调用本机 Leo CLI，在本地 Aleo devnet 上真实执行合约。
 
-- **多账户 Devnet Demo**  
+- **多账户 Devnet Demo**
   前端支持切换多个本地 devnet 测试账户，并自动检测当前账户是否已经领取。
 
-- **动画前端界面**  
+- **账户领取状态指示**
+  切换账户后，前端会自动读取该账户是否已经领取过当前 campaign。已领取账户会锁定任务进度、禁止再次签发资格和领取奖励。
+
+- **动画前端界面**
   使用 Framer Motion 和 Tailwind CSS 打磨展示效果，适合黑客松演示。
 
 ---
@@ -302,14 +315,19 @@ npm run frontend:dev
 
 1. 选择一个 devnet 账户，例如 `User 1`。
 2. 应用会自动检测该用户是否已经领取过 campaign `1u64`。
-3. 如果该用户还没有领取，点击 `Issue Real Eligibility`。
-4. 后端使用 admin private key，给当前选中用户签发私有 `Eligibility` record。
-5. 点击 `Claim on Local Devnet`。
-6. 后端使用当前选中用户的 private key 执行 `claim_airdrop`。
-7. 应用展示生成的私有 `Reward` record。
-8. Campaign 统计数据自动刷新。
-9. 切换到 `User 2` 并重复流程。
-10. 再切回 `User 1`，应用应显示 `Already Claimed`，并禁止再次领取。
+3. 如果该用户已经领取，任务进度、资格签发和 claim 都会被锁定。
+4. 如果该用户还没有领取，先在 `Airdrop Tasks` 中按顺序完成任务。
+5. 不同任务进度会生成不同的 tier 和 claimable amount，例如完成 1 个任务是较低奖励，完成全部任务是最高奖励。
+6. 点击 `Issue Real Eligibility` 前，前端会先弹窗确认当前完成任务数、tier 和可领取金额。
+7. 如果用户没有完成全部任务，弹窗会提醒该 campaign 只能领取一次，确认后才继续签发资格。
+8. 确认后，后端使用 admin private key，给当前选中用户签发私有 `Eligibility` record。
+9. 签发成功后，页面会显示该账户当前可以领取的金额。
+10. 点击 `Claim on Local Devnet`。
+11. 后端使用当前选中用户的 private key 执行 `claim_airdrop`。
+12. 应用展示生成的私有 `Reward` record。
+13. Campaign 统计数据和当前账户 claim status 自动刷新。
+14. 切换到 `User 2` 并重复流程。
+15. 再切回 `User 1`，应用应显示 `Already Claimed`，并禁止再次领取。
 
 预期 campaign 统计：
 
@@ -328,6 +346,18 @@ Claimed Amount: 2000u64
 ```
 
 这证明每个账户只能领取一次，但不同账户可以各自独立领取。
+
+任务奖励等级示例：
+
+```txt
+完成 0 个任务：不可领取
+完成 1 个任务：Tier 1，Claimable Amount 250u64
+完成 2 个任务：Tier 2，Claimable Amount 500u64
+完成 3 个任务：Tier 3，Claimable Amount 750u64
+完成 4 个任务：Tier 4，Claimable Amount 1000u64
+```
+
+注意：每个账户每个 campaign 只能领取一次。如果用户只完成了部分任务就确认签发资格并领取，后续不能再补领差额。
 
 ---
 
@@ -499,6 +529,30 @@ selected account address + campaign id
 
 ---
 
+## Task Eligibility 工作原理
+
+前端内置了一组空投任务，用于模拟真实空投中的社交任务、社区任务或链上任务。
+
+用户完成任务后，前端会根据任务进度计算：
+
+- completed task count；
+- eligibility tier；
+- claimable amount；
+- 是否已经具备领取资格。
+
+资格验证逻辑发生在 `Issue Real Eligibility` 之前：
+
+1. 如果当前账户已经领取过当前 campaign，任务进度会锁定，并禁止再次签发资格。
+2. 如果当前账户还没有完成任何任务，不能签发资格。
+3. 如果当前账户只完成了部分任务，前端会先提示“只能领取一次”，用户确认后才继续签发资格。
+4. 如果当前账户完成了全部任务，前端会展示最高 tier 和最高可领取金额，再继续签发资格。
+5. 签发成功后，`Eligibility` record 会携带当前 tier 和 amount。
+6. claim 时，合约会消耗这个 `Eligibility` record 并生成对应金额的 `Reward` record。
+
+这样可以把“任务进度 → 领取资格 → 私有奖励记录”的逻辑串起来，同时避免用户在 claim 阶段才发现自己领取等级较低。
+
+---
+
 ## 重要说明
 
 ### 1. 本地 devnet 状态不是永久的
@@ -547,6 +601,14 @@ npm run devnet:fund-users
 
 如果想从零重新测试，请 reset 本地 devnet。
 
+### 5. 未完成全部任务也可以领取，但只能领取一次
+
+任务进度会影响 `Eligibility` 中的 tier 和 amount。
+
+如果用户只完成了 1、2 或 3 个任务，也可以在确认弹窗后签发资格并领取对应等级奖励。但领取成功后，该账户对当前 campaign 会被标记为已领取，不能再通过完成后续任务补领更高金额。
+
+因此演示时建议先完成全部任务，再签发资格和领取最高奖励。
+
 ---
 
 ## Git Ignore 规则
@@ -582,11 +644,13 @@ git status --short
 
 这个项目展示了 Aleo 如何用于构建隐私保护空投系统：
 
+- 任务进度可以映射成不同的 eligibility tier；
 - eligibility 是私有的；
 - reward amount 是私有的；
 - claim 会生成私有 records；
 - public mappings 只记录最小化的反作弊状态；
 - 前端仍然可以展示有用的 campaign 统计；
-- 本地 devnet 多账户测试可以验证重复领取保护。
+- 本地 devnet 多账户测试可以验证重复领取保护；
+- 资格验证前置确认可以减少误领，并让“任务进度 → 领取金额”的关系更清晰。
 
-Demo 覆盖了从智能合约到前端交互的完整开发流程，包括本地 devnet 部署、多账户切换、真实 Leo CLI 执行和 Aleo mapping 读取。
+Demo 覆盖了从智能合约到前端交互的完整开发流程，包括本地 devnet 部署、多账户切换、任务等级资格、资格前置确认、真实 Leo CLI 执行和 Aleo mapping 读取。
