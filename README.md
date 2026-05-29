@@ -14,6 +14,25 @@
 - 从 Aleo mapping 读取真实 campaign 状态；
 - 切换多个本地 devnet 测试账户，验证“每个用户每个 campaign 只能领取一次”。
 
+<p align="center">
+  <img src="./docs/1.png" alt="Home" width="50%" />
+  <img src="./docs/2.png" alt="Wallet Connected" width="50%" />
+
+</p>
+<p align="center">
+  <img src="./docs/3.png" alt="Task Overview" width="50%" />
+  <img src="./docs/4.png" alt="Home" width="50%" />
+</p>
+
+<p align="center">
+  <img src="./docs/5.png" alt="Task Overview" width="50%" />
+  <img src="./docs/6.png" alt="Home" width="50%" />
+</p>
+
+<p align="center">
+  <img src="./docs/7.png" alt="Task Overview" width="50%" />
+</p>
+
 ---
 
 ## 项目概览
