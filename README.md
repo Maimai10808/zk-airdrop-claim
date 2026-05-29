@@ -226,6 +226,24 @@ ALEO_PROGRAM_PATH=/Volumes/DevDisk/Dev/projects/Aleo-101-Bootcamp/zk-airdrop-cla
 
 ---
 
+## 推荐完整启动流程
+
+第一次或全新本地运行：
+
+```bash
+npm run devnet:start
+```
+
+然后在另一个终端运行：
+
+```bash
+npm run devnet:bootstrap
+npm run devnet:fund-users
+npm run frontend:dev
+```
+
+---
+
 ## 本地 Devnet 工作流
 
 推荐使用多个终端运行。
@@ -281,24 +299,6 @@ http://localhost:3000
 
 ```txt
 http://localhost:3001
-```
-
----
-
-## 推荐完整启动流程
-
-第一次或全新本地运行：
-
-```bash
-npm run devnet:start
-```
-
-然后在另一个终端运行：
-
-```bash
-npm run devnet:bootstrap
-npm run devnet:fund-users
-npm run frontend:dev
 ```
 
 ---
